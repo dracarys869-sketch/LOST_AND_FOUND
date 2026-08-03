@@ -1,0 +1,19 @@
+# Allow all files by default
+Options -Indexes
+
+# Deny access to sensitive files
+<FilesMatch "\.(sql|log|env|bak|sh|md)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Deny direct access to config directory
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Deny access to config/ directly
+    RewriteRule ^config/.*$ - [F,L]
+
+    # Deny direct API access without CSRF (handled in PHP, but belt-and-suspenders)
+    # RewriteRule ^api/.*$ - [F,L]
+</IfModule>
