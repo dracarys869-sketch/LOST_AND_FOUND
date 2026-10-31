@@ -10,8 +10,17 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/notifications.php';
+require_once __DIR__ . '/../includes/claim_ml.php';
 
 requireRole('admin');
+
+$mlReady = claimMl()->schemaReady();
+$claimAssessments = $mlReady ? db()->fetchAll(
+    'SELECT c.id,c.status,c.created_at,fi.item_name,u.name AS claimant_name,a.classification,a.evidence_json,a.prediction_reason
+     FROM claims c JOIN found_items fi ON fi.id=c.found_item_id JOIN users u ON u.id=c.claimant_id
+     LEFT JOIN claim_assessments a ON a.claim_id=c.id ORDER BY c.created_at DESC,c.id DESC LIMIT 8'
+) : [];
+$activeTree = $mlReady ? db()->fetchOne('SELECT version FROM decision_tree_models WHERE is_active=1 ORDER BY id DESC LIMIT 1') : false;
 
 // ─── KPI Stats ───────────────────────────────────────────────
 $stats = [
@@ -129,6 +138,42 @@ include __DIR__ . '/../includes/sidebar_admin.php';
         </a>
       </div>
       <?php endforeach; ?>
+    </div>
+
+    <div class="card mb-4">
+      <div class="card-header">
+        <span class="card-title"><i class="bi bi-diagram-3"></i> Decision Tree — Ownership Claims</span>
+        <a href="<?= BASE_URL ?>/admin/decision_tree.php" class="btn btn-sm btn-outline-primary">Training &amp; Evaluation</a>
+      </div>
+      <div class="card-body">
+        <p class="mb-2">Recommendations assist review; they are not proof of ownership. Only an administrator can approve or reject a claim.</p>
+        <?php if (!$mlReady): ?>
+        <div class="alert alert-warning mb-0">Setup required: run <code>php scripts/migrate_decision_tree.php</code>.</div>
+        <?php elseif (!$activeTree): ?>
+        <div class="alert alert-info mb-0">No trained model is active. Claims are collected for manual verification; no model accuracy is available yet.</div>
+        <?php else: ?>
+        <small class="text-muted">Active model: <?= e($activeTree['version']) ?></small>
+        <?php endif; ?>
+      </div>
+      <?php if ($mlReady): ?>
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead><tr><th>Claim ID</th><th>Item</th><th>Claimant</th><th>Classification</th><th>Matching / Conflicting Information</th><th>Status</th><th>Submitted</th><th></th></tr></thead>
+          <tbody>
+          <?php foreach ($claimAssessments as $assessment): ?>
+            <tr>
+              <td>#<?= $assessment['id'] ?></td><td><?= e($assessment['item_name']) ?></td><td><?= e($assessment['claimant_name']) ?></td>
+              <td><?= claimClassificationBadge($assessment['classification']) ?></td>
+              <td style="font-size:.78rem;max-width:300px;"><?= e(claimEvidenceSummary($assessment['evidence_json'])) ?></td>
+              <td><?= statusBadge($assessment['status']) ?></td><td style="white-space:nowrap;font-size:.78rem;"><?= formatDate($assessment['created_at'], 'M j, Y h:i A') ?></td>
+              <td><a href="<?= BASE_URL ?>/admin/claim_review.php?id=<?= $assessment['id'] ?>" class="btn btn-sm btn-outline-primary">Review</a></td>
+            </tr>
+          <?php endforeach; ?>
+          <?php if (!$claimAssessments): ?><tr><td colspan="8" class="text-center text-muted py-3">No claims submitted.</td></tr><?php endif; ?>
+          </tbody>
+        </table>
+      </div>
+      <?php endif; ?>
     </div>
 
     <!-- Charts Row -->

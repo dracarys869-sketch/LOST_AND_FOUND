@@ -65,7 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 db()->commit();
                 MatchingEngine::runForFoundItem($itemId);
                 setFlash('success',"Found item {$reportNum} logged successfully. QR code generated.");
-                redirect(BASE_URL.'/security/found_items.php');
+                redirect(BASE_URL.'/security/item_verification.php?item_id=' . $itemId);
             } catch (Exception $e) {
                 db()->rollBack();
                 $errors[] = 'Error: '.$e->getMessage();
@@ -128,9 +128,9 @@ include __DIR__ . '/../includes/sidebar_security.php';
             <div class="col-md-4"><label class="form-label">Brand</label><input type="text" name="brand" class="form-control"></div>
             <div class="col-md-4"><label class="form-label">Color</label><input type="text" name="color" class="form-control"></div>
             <div class="col-md-4"><label class="form-label">Date Found *</label><input type="date" name="date_found" class="form-control" required value="<?= date('Y-m-d') ?>"></div>
-            <div class="col-12"><label class="form-label">Description</label><textarea name="description" class="form-control" rows="3"></textarea></div>
+            <div class="col-12"><label class="form-label">Private Detailed Description</label><textarea name="description" class="form-control" rows="3"></textarea><div class="form-text">Keep the item name generic. Record unique details here; add an independently checked verification reference after saving.</div></div>
             <div class="col-12">
-              <label class="form-label">Photos</label>
+              <label class="form-label">Photos (private until reviewed by an administrator)</label>
               <div class="drop-zone" id="dropZone"><i class="bi bi-cloud-upload"></i><p>Drop photos here or click to browse</p></div>
               <input type="file" id="photosInput" name="photos[]" multiple accept="image/*" class="d-none">
               <div class="photo-preview-grid" id="photoPreviewGrid"></div>
@@ -186,6 +186,7 @@ include __DIR__ . '/../includes/sidebar_security.php';
                 </td>
                 <td style="font-size:.78rem;white-space:nowrap;"><?= formatDate($fi['date_found']) ?></td>
                 <td>
+                  <a href="<?= BASE_URL ?>/security/item_verification.php?item_id=<?= $fi['id'] ?>" class="btn btn-sm btn-outline-primary py-0 px-2" title="Private verification reference"><i class="bi bi-shield-lock"></i> Verify</a>
                   <button class="btn btn-sm btn-outline-secondary py-0 px-2"
                           data-bs-toggle="modal" data-bs-target="#storageModal"
                           data-id="<?= $fi['id'] ?>" data-storage="<?= e($fi['storage_location']??'') ?>">

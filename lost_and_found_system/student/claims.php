@@ -10,60 +10,46 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/notifications.php';
+require_once __DIR__ . '/../includes/claim_ml.php';
 
 requireRole('student', 'admin');
 
 $uid    = $user['id'];
 $errors = [];
+$categories = getCategories();
+$locations = getLocations();
+$formValue = static fn(string $key): string => is_string($_POST[$key] ?? null) ? $_POST[$key] : '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verifyCsrf();
 
-    $foundId   = (int)($_POST['found_item_id'] ?? 0);
-    $matchId   = (int)($_POST['match_id']      ?? 0) ?: null;
-    $lostId    = (int)($_POST['lost_item_id']  ?? 0) ?: null;
-    $proof     = sanitize($_POST['proof_description'] ?? '');
-
-    if (!$foundId) $errors[] = 'Invalid item.';
-
-    // Check no duplicate
-    $existing = db()->fetchOne('SELECT id FROM claims WHERE claimant_id=? AND found_item_id=? AND status!="rejected"', [$uid,$foundId]);
-    if ($existing) $errors[] = 'You already have an active claim for this item.';
-
-    if (empty($errors)) {
-        $proofPhoto = null;
-        if (!empty($_FILES['proof_photo']['name'])) {
+    $proofPhoto = null;
+    try {
+        ClaimFeatures::submission($_POST);
+        if (isset($_FILES['proof_photo']) && ($_FILES['proof_photo']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE) {
             $proofPhoto = uploadFile($_FILES['proof_photo'], 'claim_proofs');
+            if (!$proofPhoto) throw new InvalidArgumentException('Supporting photo could not be uploaded. Use an allowed image under 5 MB.');
         }
-
-        $claimId = (int)db()->insert(
-            'INSERT INTO claims (lost_item_id, found_item_id, match_id, claimant_id, proof_description, proof_photo)
-             VALUES (?,?,?,?,?,?)',
-            [$lostId, $foundId, $matchId, $uid, $proof ?: null, $proofPhoto]
-        );
-
-        // Notify admins and security
-        $fi = db()->fetchOne('SELECT item_name FROM found_items WHERE id=?',[$foundId]);
-        $staffList = db()->fetchAll('SELECT id FROM users WHERE role IN ("admin","security") AND status="active"');
-        foreach ($staffList as $s) {
-            createNotification($s['id'], 'New Ownership Claim Filed',
-                "{$user['name']} filed a claim for \"{$fi['item_name']}\". Please review.", 'claim', $claimId, 'claim');
-        }
-
-        auditLog($uid, 'FILE_CLAIM', 'claims', $claimId);
-        setFlash('success', 'Your claim has been submitted. Staff will review it shortly.');
+        claimMl()->submitClaim((int)$uid, $_POST, $proofPhoto ?: null);
+        setFlash('success', 'Your claim has been submitted. An administrator will review your ownership evidence.');
         redirect(BASE_URL . '/student/claims.php');
+    } catch (InvalidArgumentException | DomainException $e) {
+        $errors[] = $e->getMessage();
+    } catch (Throwable $e) {
+        error_log('Claim submission failed: ' . get_class($e));
+        $errors[] = 'The claim could not be saved. Please try again or contact an administrator.';
     }
+    if ($proofPhoto) @unlink(UPLOADS_PATH . '/' . $proofPhoto);
 }
 
 // Pre-fill from URL if coming from matches page
-$preFilledFoundId = (int)($_GET['found_id']   ?? 0);
-$preFilledMatchId = (int)($_GET['match_id']   ?? 0);
+$preFilledFoundId = (int)filter_var($_POST['found_item_id'] ?? $_GET['found_id'] ?? 0, FILTER_VALIDATE_INT);
+$preFilledMatchId = (int)filter_var($_POST['match_id'] ?? $_GET['match_id'] ?? 0, FILTER_VALIDATE_INT);
 
 // Fetch found item info if pre-filling
 $preFilledFound = null;
 if ($preFilledFoundId) {
-    $preFilledFound = db()->fetchOne('SELECT * FROM found_items WHERE id=?', [$preFilledFoundId]);
+    $preFilledFound = db()->fetchOne('SELECT id,item_name,report_number,storage_location FROM found_items WHERE id=? AND status IN ("active","matched")', [$preFilledFoundId]);
 }
 
 // Fetch this student's claims
@@ -78,7 +64,7 @@ $claims = db()->fetchAll(
     [$uid]
 );
 
-$showForm = isset($_GET['action']) && $_GET['action'] === 'new';
+$showForm = !empty($errors) || (isset($_GET['action']) && $_GET['action'] === 'new');
 
 $extraHead = '<script>const BASE_URL="' . BASE_URL . '";</script>';
 include __DIR__ . '/../includes/header.php';
@@ -125,17 +111,54 @@ include __DIR__ . '/../includes/sidebar_student.php';
           <input type="hidden" name="match_id"      value="<?= $preFilledMatchId ?>">
           <?php else: ?>
           <div class="mb-3">
-            <label class="form-label">Found Item Report # (or ID)</label>
+            <label class="form-label">Found Item ID</label>
             <input type="number" name="found_item_id" class="form-control" required placeholder="Found item ID">
           </div>
           <?php endif; ?>
 
+          <div class="alert alert-info">Describe the item from your own knowledge. Your evidence is private. An administrator makes the final ownership decision.</div>
+          <div class="row g-3 mb-3">
+            <div class="col-md-4">
+              <label class="form-label" for="claimedCategory">Your item's category</label>
+              <select name="claimed_category_id" id="claimedCategory" class="form-select">
+                <option value="">Not sure</option>
+                <?php foreach ($categories as $category): ?>
+                <option value="<?= $category['id'] ?>" <?= $formValue('claimed_category_id') === (string)$category['id'] ? 'selected' : '' ?>><?= e($category['name']) ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" for="claimedLocation">Where you lost it</label>
+              <select name="claimed_location_id" id="claimedLocation" class="form-select">
+                <option value="">Not sure</option>
+                <?php foreach ($locations as $location): ?>
+                <option value="<?= $location['id'] ?>" <?= $formValue('claimed_location_id') === (string)$location['id'] ? 'selected' : '' ?>><?= e($location['name']) ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" for="claimedDate">Date you lost it</label>
+              <input type="date" name="claimed_date_lost" id="claimedDate" class="form-control" max="<?= date('Y-m-d') ?>" value="<?= e($formValue('claimed_date_lost')) ?>">
+              <div class="form-text">Leave blank if unknown.</div>
+            </div>
+          </div>
           <div class="mb-3">
             <label class="form-label">Proof of Ownership <span class="text-danger">*</span></label>
-            <textarea name="proof_description" class="form-control" rows="5" required
-                      placeholder="Describe why this item belongs to you:&#10;• Unique identifying features (scratches, stickers, contents)&#10;• When and where you lost it&#10;• What was inside (if applicable)&#10;• Serial numbers or registration details"><?= e($_POST['proof_description'] ?? '') ?></textarea>
+            <textarea name="proof_description" class="form-control" rows="5" required minlength="10" maxlength="4000"
+                      placeholder="Describe your item and explain your ownership evidence."><?= e($formValue('proof_description')) ?></textarea>
             <div class="form-text">The more detail you provide, the faster your claim will be reviewed.</div>
           </div>
+          <div class="mb-3">
+            <label class="form-label" for="claimMarks">Unique identifying characteristics</label>
+            <textarea name="unique_characteristics" id="claimMarks" class="form-control" rows="3" maxlength="2000" placeholder="Describe private marks, stickers, scratches, or an identifying code."><?= e($formValue('unique_characteristics')) ?></textarea>
+          </div>
+          <?php foreach (ClaimFeatures::QUESTIONS as $key => $question): ?>
+          <div class="mb-3">
+            <label class="form-label" for="answer-<?= $key ?>"><?= e($question) ?></label>
+            <textarea name="verification_answers[<?= $key ?>]" id="answer-<?= $key ?>" class="form-control" rows="2" maxlength="1000"><?= e(is_string($_POST['verification_answers'][$key] ?? null) ? $_POST['verification_answers'][$key] : '') ?></textarea>
+          </div>
+          <?php endforeach; ?>
+          <p class="form-text">Leave optional answers blank if you do not know. Do not provide passwords, PINs, or account credentials.</p>
 
           <div class="mb-3">
             <label class="form-label">Supporting Photo (optional)</label>

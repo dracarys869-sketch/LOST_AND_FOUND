@@ -1,12 +1,4 @@
-# 🔍 School Lost & Found Management System
-
-A modern, full-featured **PHP/MySQL** web application for managing lost and found items in a school environment. Supports three user roles (Admin, Student, Security), smart item matching, QR code generation, PDF/CSV reports, and real-time in-app notifications.
-
-> **Version:** 1.0.0 &nbsp;|&nbsp; **PHP:** 8.0+ &nbsp;|&nbsp; **Database:** MySQL (utf8mb4) &nbsp;|&nbsp; **Timezone:** Asia/Manila
-
----
-
-## 🚀 Quick Access
+Quick Access
 
 **URL:** `http://localhost/lost_and_found_system`
 
@@ -14,20 +6,7 @@ A modern, full-featured **PHP/MySQL** web application for managing lost and foun
 |----------|-------------------------|------------|
 | Admin    | admin@school.edu.ph     | admin@skul123 |
 | Student  | student@school.edu      | password   |
-| Security | security@school.edu     | password   |
-
-> ⚠️ **Change these passwords immediately before deploying to production.**
-
----
-
-## 📋 Requirements
-
-| Requirement | Details |
-|-------------|---------|
-| **XAMPP** | Apache + MySQL, PHP 8.0 or higher |
-| **phpqrcode** | QR code generation (optional) |
-| **FPDF** | PDF report export (optional) |
-| **Web browser** | Any modern browser |
+| Security | security@school.edu     | secu123   |
 
 ---
 
@@ -44,56 +23,21 @@ C:\xampp\htdocs\lost_and_found_system\
 2. Open phpMyAdmin: `http://localhost/phpmyadmin`
 3. Create a new database named **`lost_and_found_db`**
 4. Select it → **Import** → choose `database/lost_and_found_db.sql` → click **Go**
+5. Import `database/migrations/001_decision_tree.sql` into the same database. For an existing installation, run only this additive migration.
+
+### Decision Tree Ownership Recommendations
+
+The system now supports a single PHP Decision Tree classifier for ownership claims. Open **Admin → Decision Tree** for data readiness, training, and evaluation, and **Claims → Review** for private evidence and the final administrator decision.
+
+Start by recording independently inspected item references and independently verified claim labels. Until sufficient reliable training/test data exists, claims are explicitly **Not classified** and reviewed manually.
+
+See [DECISION_TREE.md](DECISION_TREE.md) for setup, database changes, training/testing procedures, evaluation status, security behavior, usage, and the source-file map.
 
 ### 3. Configure the Application
 Open `config/config.php` and update the values to match your environment:
 
-```php
-// ─── Base URL ───────────────────────────────────────────────
 define('BASE_URL', 'http://localhost/lost_and_found_system');
 
-// ─── Database ───────────────────────────────────────────────
-define('DB_HOST',    'localhost');
-define('DB_PORT',    '3306');        // Default MySQL port; change if needed
-define('DB_NAME',    'lost_and_found_db');
-define('DB_USER',    'root');
-define('DB_PASS',    '');            // Your MySQL password
-
-// ─── Environment ────────────────────────────────────────────
-define('APP_ENV', 'development');    // Change to 'production' when live
-
-// ─── Matching Engine ────────────────────────────────────────
-define('MATCH_THRESHOLD', 75.0);    // Min score (%) for auto-match flagging
-
-// ─── Session Timeout ────────────────────────────────────────
-define('SESSION_TIMEOUT', 1800);    // 30 minutes
-```
-
-### 4. Install Optional Libraries
-
-#### phpqrcode (QR Code generation)
-1. Download from: http://phpqrcode.sourceforge.net/
-2. Extract and place so that `includes/phpqrcode/qrlib.php` exists
-
-#### FPDF (PDF reports)
-1. Download from: http://www.fpdf.org/
-2. Place so that `includes/fpdf/fpdf.php` exists
-
-> **Note:** QR code scanning and PDF exports require these libraries. All other features — smart matching, claims, notifications, CSV export — work without them.
-
-### 5. File Permissions
-Ensure Apache can write to these directories (auto-created on first use):
-- `assets/uploads/` — item photos
-- `qr_codes/` — generated QR images
-
-### 6. Open in Browser
-Navigate to: **`http://localhost/lost_and_found_system`**
-
----
-
-## 🗂️ Project Structure
-
-```
 lost_and_found_system/
 ├── admin/
 │   ├── dashboard.php       # Admin overview & stats
@@ -177,7 +121,8 @@ lost_and_found_system/
 | **Smart Matching** | Weighted algorithm scores lost vs. found items on name, category, color, brand, location, and date. Flags pairs above the configurable threshold (default 75%). |
 | **QR Codes** | Auto-generated unique QR code for every found item. Security staff can scan via camera (`security/qr_scanner.php`) for instant item lookup. |
 | **Role-Based Access** | Admin, Student, and Security each have isolated dashboards, sidebars, and page access enforced server-side. |
-| **Claims Workflow** | Student files claim → Admin or Security reviews & approves/rejects → Security records physical release → Student notified. |
+| **Claims Workflow** | Student files claim → Decision Tree recommendation (when trained) → Admin reviews & approves/rejects → Security records physical release → Student notified. |
+| **Decision Tree** | Single CART classifier using ownership-only evidence, private verification records, independent labels, grouped train/test separation, saved model versions, and administrator-only recommendations. |
 | **In-App Notifications** | Badge count polled via `api/notifications.php`. Students receive alerts for new matches and claim status changes. |
 | **Reports & Exports** | Admin can export filtered data to **CSV** (Excel-compatible) or a branded **PDF** report. |
 | **Dark Mode** | Light/dark toggle persisted in a cookie and applied immediately without page reload. |
@@ -212,45 +157,9 @@ lost_and_found_system/
 - Log found items (with photo, location, storage info)
 - QR code auto-generated on item creation
 - Scan QR codes via camera for instant item detail
-- Review and act on incoming claims
+- Record private evidence reviews for incoming claims; administrators make final ownership decisions
 - Record physical item release to approved claimants
 - Manage storage locations
-
----
-
-## 🔒 Security Notes
-
-| Concern | Implementation |
-|---------|---------------|
-| **Password storage** | bcrypt with cost factor 12 |
-| **SQL injection** | All queries use PDO prepared statements |
-| **XSS** | All output is `htmlspecialchars()`-escaped |
-| **CSRF** | Rotating token validated on every POST |
-| **Directory access** | `config/` and `database/` blocked by `.htaccess` |
-| **Session hardening** | `httponly`, `SameSite=Strict` cookies; 30-minute idle timeout |
-| **File uploads** | MIME type + extension allow-list; files stored outside web root naming |
-
----
-
-## 🔧 Configuration Reference (`config/config.php`)
-
-| Constant | Default | Description |
-|----------|---------|-------------|
-| `APP_ENV` | `development` | Set to `production` to suppress errors |
-| `BASE_URL` | `http://localhost/lost_and_found_system` | Public URL to the project root |
-| `DB_HOST` | `localhost` | MySQL host |
-| `DB_PORT` | `3367` | MySQL port (default MySQL is `3306`) |
-| `DB_NAME` | `lost_and_found_db` | Database name |
-| `DB_USER` | `root` | Database username |
-| `DB_PASS` | _(empty)_ | Database password |
-| `SESSION_TIMEOUT` | `1800` | Idle session timeout in seconds |
-| `MATCH_THRESHOLD` | `75.0` | Min match score (%) to surface to users |
-| `MAX_FILE_SIZE` | `5242880` | Max upload size in bytes (5 MB) |
-| `ITEMS_PER_PAGE` | `10` | Pagination page size |
-| `BCRYPT_COST` | `12` | bcrypt hashing cost |
-| `LOST_PREFIX` | `LI` | Report number prefix for lost items |
-| `FOUND_PREFIX` | `FI` | Report number prefix for found items |
-
 ---
 
 ## 📊 Demo Flow
@@ -260,35 +169,5 @@ lost_and_found_system/
 3. **Security** logs in → logs a **found item** → QR code auto-generated
 4. **Matching engine** runs → calculates weighted score → student notified if ≥ threshold
 5. **Student** reviews match → files an **ownership claim** with supporting proof
-6. **Admin / Security** reviews claim → **approves** or **rejects** it
+6. **Admin** reviews the claim, supporting evidence, and available Decision Tree recommendation → **approves** or **rejects** it
 7. **Security** records **item release** → student receives confirmation notification
-
----
-
-## 🌐 API Endpoints
-
-All endpoints return JSON and require an active authenticated session.
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `api/match_items.php` | Trigger the matching engine for a lost item |
-| `GET` | `api/notifications.php` | Get unread notification count for the current user |
-| `GET` | `api/qr_lookup.php?code=<FI###>` | Look up a found item by its QR code value |
-| `POST` | `api/upload_photo.php` | Upload an item photo asynchronously |
-
----
-
-## 🛠️ Troubleshooting
-
-| Problem | Solution |
-|---------|----------|
-| Blank page / 500 error | Set `APP_ENV = 'development'` in `config.php` to show errors |
-| Cannot connect to database | Verify `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASS` in `config.php` |
-| QR codes not generating | Ensure `includes/phpqrcode/qrlib.php` exists |
-| PDF export fails | Ensure `includes/fpdf/fpdf.php` exists |
-| Uploads not saving | Check `assets/uploads/` exists and Apache has write permission |
-| Session expires too fast | Increase `SESSION_TIMEOUT` in `config.php` or via Admin → Settings |
-| Wrong timezone on dates | Update `date_default_timezone_set()` at the bottom of `config.php` |
-
-
-

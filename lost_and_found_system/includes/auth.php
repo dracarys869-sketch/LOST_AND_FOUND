@@ -41,10 +41,10 @@ function requireLogin(): void
 function requireRole(string ...$roles): void
 {
     requireLogin();
-    if (!in_array($_SESSION['role'], $roles, true)) {
+    // Use the current database role, including changes made since this session began.
+    if (!in_array(currentUser()['role'] ?? '', $roles, true)) {
         http_response_code(403);
-        include BASE_PATH . '/includes/403.php';
-        exit;
+        exit('Access denied.');
     }
 }
 
@@ -112,7 +112,8 @@ function csrfField(): string
 function verifyCsrf(): void
 {
     $token = $_POST[CSRF_TOKEN_NAME] ?? '';
-    if (!hash_equals($_SESSION[CSRF_TOKEN_NAME] ?? '', $token)) {
+    $expected = $_SESSION[CSRF_TOKEN_NAME] ?? '';
+    if (!is_string($token) || !is_string($expected) || $token === '' || $expected === '' || !hash_equals($expected, $token)) {
         http_response_code(403);
         die('CSRF token mismatch. Please go back and try again.');
     }
@@ -189,4 +190,3 @@ if (!function_exists('userInitials')) {
 
 // Global user variable initialization
 $user = isLoggedIn() ? currentUser() : [];
-

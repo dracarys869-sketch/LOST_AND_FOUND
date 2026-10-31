@@ -295,6 +295,8 @@ include __DIR__ . '/../includes/sidebar_admin.php';
                           data-type="<?= $type ?>">
                     <i class="bi bi-pencil"></i>
                   </button>
+                  <?php if ($type === 'found'): ?><a href="<?= BASE_URL ?>/security/item_verification.php?item_id=<?= $item['id'] ?>" class="btn btn-sm btn-outline-primary py-0 px-2">Private Reference</a><?php endif; ?>
+                  <a href="<?= BASE_URL ?>/admin/photo_review.php?type=<?= $type ?>&item_id=<?= $item['id'] ?>" class="btn btn-sm btn-outline-secondary py-0 px-2">Photos</a>
                 </td>
               </tr>
               <?php endforeach; ?>

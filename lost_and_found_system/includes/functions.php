@@ -242,13 +242,19 @@ function timeAgo(string $datetime): string
 // ─── Photo URL Helper ─────────────────────────────────────────
 function photoUrl(string $path): string
 {
+    if (preg_match('~^(lost_items|found_items|claim_proofs)/~', $path)) {
+        return BASE_URL . '/api/item_photo.php?path=' . rawurlencode($path);
+    }
     return UPLOADS_URL . '/' . ltrim($path, '/');
 }
 
 function itemPrimaryPhoto(string $type, int $id): ?string
 {
+    require_once __DIR__ . '/claim_ml.php';
+    if (!claimMl()->schemaReady()) return null;
     $row = db()->fetchOne(
-        'SELECT photo_path FROM item_photos WHERE item_type = ? AND item_id = ? AND is_primary = 1 LIMIT 1',
+        'SELECT p.photo_path FROM item_photos p JOIN item_photo_visibility v ON v.photo_id=p.id AND v.is_public=1
+         WHERE p.item_type = ? AND p.item_id = ? ORDER BY p.is_primary DESC,p.id LIMIT 1',
         [$type, $id]
     );
     return $row ? photoUrl($row['photo_path']) : null;

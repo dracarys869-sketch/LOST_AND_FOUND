@@ -10,7 +10,7 @@ require_once __DIR__ . '/../includes/functions.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
-requireLogin();
+requireRole('security', 'admin');
 
 $id = sanitize($_GET['id'] ?? '');
 

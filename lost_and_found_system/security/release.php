@@ -10,51 +10,22 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/notifications.php';
+require_once __DIR__ . '/../includes/claim_ml.php';
 
 requireRole('security', 'admin');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verifyCsrf();
-    $claimId  = (int)($_POST['claim_id']  ?? 0);
-    $notes    = sanitize($_POST['notes']  ?? '');
-
-    if ($claimId) {
-        $claim = db()->fetchOne(
-            'SELECT c.*, fi.id AS found_id, fi.item_name FROM claims c LEFT JOIN found_items fi ON c.found_item_id=fi.id WHERE c.id=? AND c.status="approved"',
-            [$claimId]
-        );
-        if ($claim) {
-            db()->beginTransaction();
-            try {
-                // Create release record
-                $relId = (int)db()->insert(
-                    'INSERT INTO releases (claim_id, found_item_id, released_by, released_to, notes) VALUES (?,?,?,?,?)',
-                    [$claimId, $claim['found_id'], $user['id'], $claim['claimant_id'], $notes ?: null]
-                );
-                // Update found item status
-                db()->execute("UPDATE found_items SET status='released' WHERE id=?", [$claim['found_id']]);
-                // Update lost item status if linked
-                if ($claim['lost_item_id']) {
-                    db()->execute("UPDATE lost_items SET status='claimed' WHERE id=?", [$claim['lost_item_id']]);
-                }
-                // Update match status if linked
-                if ($claim['match_id']) {
-                    db()->execute("UPDATE matches SET status='confirmed' WHERE id=?", [$claim['match_id']]);
-                }
-                // Notify student
-                createNotification($claim['claimant_id'], 'Item Released!',
-                    "Your item \"{$claim['item_name']}\" has been released to you. Thank you!", 'success', $relId, 'release');
-
-                auditLog($user['id'], 'RELEASE_ITEM', 'releases', $relId);
-                db()->commit();
-                setFlash('success', "Item \"{$claim['item_name']}\" released successfully. Release record created.");
-            } catch (Exception $e) {
-                db()->rollBack();
-                setFlash('danger', 'Error recording release: ' . $e->getMessage());
-            }
-        } else {
-            setFlash('danger', 'Claim not found or not yet approved.');
-        }
+    try {
+        $claimId = ClaimFeatures::id($_POST['claim_id'] ?? null, 'claim');
+        $notes = ClaimFeatures::text($_POST['notes'] ?? '', 'Release notes', 2000);
+        claimMl()->releaseClaim((int)$user['id'], $claimId, $notes);
+        setFlash('success', 'Item released successfully. Release record created and claimant notified.');
+    } catch (InvalidArgumentException | DomainException $e) {
+        setFlash('danger', $e->getMessage());
+    } catch (Throwable $e) {
+        error_log('Item release failed: ' . get_class($e));
+        setFlash('danger', 'The release could not be saved. Please try again.');
     }
     redirect(BASE_URL . '/security/release.php');
 }
@@ -63,13 +34,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $preFillClaimId = (int)($_GET['claim_id'] ?? 0);
 
 // Fetch approved, unreleased claims
-$approved = db()->fetchAll(
+$approved = claimMl()->schemaReady() ? db()->fetchAll(
     'SELECT c.*, fi.item_name, fi.report_number AS found_rn, fi.storage_location, u.name AS claimant_name, u.student_id
      FROM claims c LEFT JOIN found_items fi ON c.found_item_id=fi.id LEFT JOIN users u ON c.claimant_id=u.id
-     WHERE c.status="approved"
-     AND NOT EXISTS (SELECT 1 FROM releases r WHERE r.claim_id=c.id)
+     JOIN claim_verifications v ON v.claim_id=c.id
+     WHERE c.status="approved" AND v.final_decision="approved" AND v.decided_by IS NOT NULL AND v.decided_at IS NOT NULL
+     AND fi.status IN ("active","matched","claimed")
+     AND NOT EXISTS (SELECT 1 FROM releases r WHERE r.found_item_id=c.found_item_id)
      ORDER BY c.updated_at ASC'
-);
+) : [];
 
 // Release history
 $history = db()->fetchAll(

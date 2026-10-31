@@ -169,9 +169,10 @@ include __DIR__ . '/../includes/sidebar_student.php';
                        placeholder="e.g. Security Office — Cabinet A">
               </div>
               <div class="mb-3">
-                <label class="form-label">Description</label>
+                <label class="form-label">Private Detailed Description</label>
                 <textarea name="description" class="form-control" rows="4"
-                          placeholder="Describe the item: condition, contents, identifying marks…"></textarea>
+                           placeholder="Describe the item: condition, contents, identifying marks…"></textarea>
+                <div class="form-text">Detailed descriptions and original photos are private. Keep the item name generic; staff will verify identifying details before reviewing ownership claims.</div>
               </div>
             </div>
           </div>

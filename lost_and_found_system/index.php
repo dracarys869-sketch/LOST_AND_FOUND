@@ -5,6 +5,7 @@
 require_once __DIR__ . '/config/config.php';
 require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/includes/functions.php';
+require_once __DIR__ . '/includes/claim_ml.php';
 
 if (session_status() === PHP_SESSION_NONE) {
     session_name(SESSION_NAME);
@@ -16,9 +17,10 @@ if (isset($_SESSION['user_id'])) {
     exit;
 }
 
-// Fetch public active items
+// Publish general item information; ownership details remain private.
+$privacyReady = claimMl()->schemaReady();
 $lostItems = db()->fetchAll(
-    'SELECT li.*, c.name AS cat, l.name AS loc 
+    'SELECT li.id,li.item_name,li.brand,li.color,li.date_lost,c.name AS cat,l.name AS loc
      FROM lost_items li 
      LEFT JOIN categories c ON li.category_id=c.id 
      LEFT JOIN locations l ON li.location_id=l.id 
@@ -27,11 +29,13 @@ $lostItems = db()->fetchAll(
 );
 
 $foundItems = db()->fetchAll(
-    'SELECT fi.*, c.name AS cat, l.name AS loc 
+    'SELECT fi.id,fi.item_name,fi.brand,fi.color,fi.date_found,c.name AS cat,l.name AS loc,
+     ' . ($privacyReady ? 'v.public_description' : 'NULL') . ' AS description
      FROM found_items fi 
      LEFT JOIN categories c ON fi.category_id=c.id 
-     LEFT JOIN locations l ON fi.location_id=l.id 
-     WHERE fi.status = "active" 
+     LEFT JOIN locations l ON fi.location_id=l.id
+     ' . ($privacyReady ? 'LEFT JOIN found_item_verification v ON v.found_item_id=fi.id ' : '') . '
+     WHERE fi.status = "active"
      ORDER BY fi.created_at DESC LIMIT 6'
 );
 ?>
@@ -123,7 +127,7 @@ $foundItems = db()->fetchAll(
                           <h5 class="fw-700 text-truncate mb-0" style="font-size: 1rem; max-width: 75%;"><?= e($item['item_name']) ?></h5>
                           <span class="badge bg-warning text-dark" style="font-size: 0.65rem;">Lost</span>
                         </div>
-                        <p class="text-muted-sm mb-3" style="font-size: 0.8rem;"><?= snippet($item['description'] ?? '', 80) ?></p>
+                        <p class="text-muted-sm mb-3" style="font-size: 0.8rem;"><?= e(implode(' · ', array_filter([$item['brand'], $item['color']]))) ?></p>
                       </div>
                       <div class="border-top pt-2" style="font-size: 0.75rem;">
                         <div class="mb-1"><i class="bi bi-tag me-1 text-primary"></i><strong>Category:</strong> <?= e($item['cat']) ?></div>

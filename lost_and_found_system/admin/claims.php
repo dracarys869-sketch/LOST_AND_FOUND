@@ -10,6 +10,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/notifications.php';
+require_once __DIR__ . '/../includes/claim_ml.php';
 
 requireRole('admin');
 
@@ -18,52 +19,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verifyCsrf();
     $action   = $_POST['action']   ?? '';
     $claimId  = (int)($_POST['claim_id'] ?? 0);
-    $notes    = sanitize($_POST['review_notes'] ?? '');
-
-    if ($action === 'approve' && $claimId) {
-        db()->execute(
-            'UPDATE claims SET status="approved", reviewed_by=?, review_notes=?, updated_at=NOW() WHERE id=?',
-            [$user['id'], $notes, $claimId]
-        );
-        // Get claim details to notify claimant
-        $claim = db()->fetchOne('SELECT c.*,u.name AS claimant_name, fi.item_name FROM claims c LEFT JOIN users u ON c.claimant_id=u.id LEFT JOIN found_items fi ON c.found_item_id=fi.id WHERE c.id=?',[$claimId]);
-        if ($claim) {
-            createNotification($claim['claimant_id'], 'Claim Approved! 🎉',
-                "Your claim for \"{$claim['item_name']}\" has been approved. Please visit the Security Office to collect your item.", 'success', $claimId, 'claim');
-            if ($claim['match_id']) {
-                db()->execute("UPDATE matches SET status='confirmed' WHERE id=?", [$claim['match_id']]);
-            }
-        }
-        auditLog($user['id'], 'APPROVE_CLAIM', 'claims', $claimId);
-        setFlash('success', 'Claim approved. Student notified.');
-    }
-    if ($action === 'reject' && $claimId) {
-        db()->execute(
-            'UPDATE claims SET status="rejected", reviewed_by=?, review_notes=?, updated_at=NOW() WHERE id=?',
-            [$user['id'], $notes, $claimId]
-        );
-        $claim = db()->fetchOne('SELECT c.*,fi.item_name FROM claims c LEFT JOIN found_items fi ON c.found_item_id=fi.id WHERE c.id=?',[$claimId]);
-        if ($claim) {
-            createNotification($claim['claimant_id'], 'Claim Rejected',
-                "Your claim for \"{$claim['item_name']}\" was rejected. Reason: " . ($notes ?: 'No reason given.'), 'warning', $claimId, 'claim');
-        }
-        auditLog($user['id'], 'REJECT_CLAIM', 'claims', $claimId);
-        setFlash('warning', 'Claim rejected.');
+    try {
+        if (!in_array($action, ['approve', 'reject'], true)) throw new InvalidArgumentException('Invalid claim action.');
+        $notes = ClaimFeatures::text($_POST['review_notes'] ?? '', 'Review notes', 2000);
+        claimMl()->decide((int)$user['id'], $claimId, $action === 'approve' ? 'approved' : 'rejected', $notes);
+        setFlash('success', 'Final decision saved. Claimant notified.');
+    } catch (InvalidArgumentException | DomainException $e) {
+        setFlash('danger', $e->getMessage());
+    } catch (Throwable $e) {
+        error_log('Claim decision failed: ' . get_class($e));
+        setFlash('danger', 'The final decision could not be saved. Please try again.');
     }
     redirect(BASE_URL . '/admin/claims.php');
 }
 
 $statusFilter = sanitize($_GET['status'] ?? '');
 $page         = max(1, (int)($_GET['page'] ?? 1));
+$mlReady = claimMl()->schemaReady();
 
 $sql    = 'SELECT c.*, u.name AS claimant_name, u.email AS claimant_email, u.student_id,
            fi.item_name, fi.report_number AS found_rn, fi.category_id,
-           rv.name AS reviewer_name
+           rv.name AS reviewer_name, ' . ($mlReady ? 'a.classification,a.evidence_json,a.prediction_reason' : 'NULL AS classification,NULL AS evidence_json,NULL AS prediction_reason') . '
            FROM claims c
            LEFT JOIN users u ON c.claimant_id=u.id
            LEFT JOIN found_items fi ON c.found_item_id=fi.id
-           LEFT JOIN users rv ON c.reviewed_by=rv.id
-           WHERE 1=1';
+           LEFT JOIN users rv ON c.reviewed_by=rv.id ' . ($mlReady ? 'LEFT JOIN claim_assessments a ON a.claim_id=c.id ' : '') . 'WHERE 1=1';
 $params = [];
 if ($statusFilter) { $sql .= ' AND c.status=?'; $params[] = $statusFilter; }
 $sql .= ' ORDER BY c.created_at DESC';
@@ -84,7 +64,8 @@ include __DIR__ . '/../includes/sidebar_admin.php';
   </div>
   <div class="content-area">
     <div class="page-header">
-      <div><h1 class="page-title">Claims Management</h1><p class="page-subtitle">Review and approve/reject ownership claims.</p></div>
+      <div><h1 class="page-title">Claims Management</h1><p class="page-subtitle">Review ownership evidence and Decision Tree recommendations before making the final decision.</p></div>
+      <a href="<?= BASE_URL ?>/admin/decision_tree.php" class="btn btn-outline-primary btn-sm"><i class="bi bi-diagram-3 me-1"></i>Decision Tree</a>
     </div>
 
     <!-- Status filter pills -->
@@ -101,7 +82,7 @@ include __DIR__ . '/../includes/sidebar_admin.php';
       <div class="card-body p-0">
         <div class="table-responsive">
           <table class="table table-hover mb-0 table-mobile-cards">
-            <thead><tr><th>#</th><th>Item</th><th>Claimant</th><th>Proof</th><th>Status</th><th>Submitted</th><th>Actions</th></tr></thead>
+            <thead><tr><th>#</th><th>Item</th><th>Claimant</th><th>Decision Tree / Evidence</th><th>Status</th><th>Submitted</th><th>Actions</th></tr></thead>
             <tbody>
               <?php foreach ($pager['rows'] as $claim): ?>
               <tr>
@@ -117,26 +98,16 @@ include __DIR__ . '/../includes/sidebar_admin.php';
                   <div style="font-size:.72rem;color:var(--text-light);">ID: <?= e($claim['student_id']) ?></div>
                   <?php endif; ?>
                 </td>
-                <td data-label="Proof" style="font-size:.8rem;max-width:200px;"><?= snippet($claim['proof_description'] ?? '', 70) ?></td>
+                <td data-label="Decision Tree" style="font-size:.8rem;max-width:300px;">
+                  <?= claimClassificationBadge($claim['classification']) ?>
+                  <div class="text-muted mt-1"><?= e(claimEvidenceSummary($claim['evidence_json'])) ?></div>
+                  <?php if ($claim['prediction_reason']): ?><div class="mt-1"><?= e($claim['prediction_reason']) ?></div><?php endif; ?>
+                </td>
                 <td data-label="Status"><?= statusBadge($claim['status']) ?></td>
                 <td data-label="Submitted" style="font-size:.78rem;white-space:nowrap;"><?= timeAgo($claim['created_at']) ?></td>
                 <td data-label="Actions">
-                  <?php if ($claim['status'] === 'pending'): ?>
-                  <div class="d-flex gap-1">
-                    <button class="btn btn-sm btn-success py-0 px-2"
-                            data-bs-toggle="modal" data-bs-target="#actionModal"
-                            data-id="<?= $claim['id'] ?>" data-action="approve"
-                            data-name="<?= e($claim['item_name']) ?>">
-                      <i class="bi bi-check-lg"></i> Approve
-                    </button>
-                    <button class="btn btn-sm btn-outline-danger py-0 px-2"
-                            data-bs-toggle="modal" data-bs-target="#actionModal"
-                            data-id="<?= $claim['id'] ?>" data-action="reject"
-                            data-name="<?= e($claim['item_name']) ?>">
-                      <i class="bi bi-x"></i> Reject
-                    </button>
-                  </div>
-                  <?php else: ?>
+                  <a class="btn btn-sm btn-outline-primary" href="<?= BASE_URL ?>/admin/claim_review.php?id=<?= $claim['id'] ?>">Review</a>
+                  <?php if ($claim['status'] !== 'pending'): ?>
                   <span style="font-size:.75rem;color:var(--text-muted);">by <?= e($claim['reviewer_name'] ?? '—') ?></span>
                   <?php endif; ?>
                 </td>
@@ -158,46 +129,5 @@ include __DIR__ . '/../includes/sidebar_admin.php';
     </div>
   </div>
 </div>
-
-<!-- Action Modal -->
-<div class="modal fade" id="actionModal" tabindex="-1">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header"><h5 class="modal-title" id="actionModalTitle"></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-      <form method="POST">
-        <?= csrfField() ?>
-        <input type="hidden" name="action"   id="modalClaimAction">
-        <input type="hidden" name="claim_id" id="modalClaimId">
-        <div class="modal-body">
-          <p id="modalClaimDesc"></p>
-          <div class="mb-3">
-            <label class="form-label">Review Notes</label>
-            <textarea name="review_notes" class="form-control" rows="3" placeholder="Add a note for the student (optional)…"></textarea>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn" id="modalConfirmBtn">Confirm</button>
-        </div>
-      </form>
-    </div>
-  </div>
-</div>
-
-<script>
-document.getElementById('actionModal')?.addEventListener('show.bs.modal', function(e) {
-    const b = e.relatedTarget;
-    const isApprove = b.dataset.action === 'approve';
-    document.getElementById('modalClaimAction').value = b.dataset.action;
-    document.getElementById('modalClaimId').value     = b.dataset.id;
-    document.getElementById('actionModalTitle').innerHTML = isApprove
-        ? '<i class="bi bi-check-circle text-success me-2"></i>Approve Claim'
-        : '<i class="bi bi-x-circle text-danger me-2"></i>Reject Claim';
-    document.getElementById('modalClaimDesc').textContent = `Item: ${b.dataset.name}`;
-    const btn = document.getElementById('modalConfirmBtn');
-    btn.className = 'btn ' + (isApprove ? 'btn-success' : 'btn-danger');
-    btn.textContent = isApprove ? 'Approve Claim' : 'Reject Claim';
-});
-</script>
 
 <?php include __DIR__ . '/../includes/footer.php'; ?>

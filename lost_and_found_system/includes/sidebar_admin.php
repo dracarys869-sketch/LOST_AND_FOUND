@@ -45,6 +45,7 @@ $pendingMatches  = db()->fetchOne('SELECT COUNT(*) AS c FROM matches WHERE statu
     <?= adminNavLink(BASE_URL.'/admin/reports.php?type=found', 'bi-box-seam', 'Found Items', 'found',       $activePage) ?>
     <?= adminNavLink(BASE_URL.'/admin/reports.php?type=match', 'bi-link-45deg','Matches',    'matches',     $activePage, (int)$pendingMatches) ?>
     <?= adminNavLink(BASE_URL.'/admin/claims.php',      'bi-file-earmark-check','Claims',   'claims',      $activePage, (int)$pendingClaims) ?>
+    <?= adminNavLink(BASE_URL.'/admin/decision_tree.php', 'bi-diagram-3', 'Decision Tree', 'decision_tree', $activePage) ?>
 
     <span class="nav-section-label">Management</span>
     <?= adminNavLink(BASE_URL.'/admin/users.php',       'bi-people',         'Users',       'users',       $activePage) ?>

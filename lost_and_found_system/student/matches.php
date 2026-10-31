@@ -1,6 +1,6 @@
 <?php
 /**
- * Student — My Matches (AI Match Results)
+ * Student — My Matches (existing weighted item-matching results)
  */
 $pageTitle  = 'My Matches';
 $activePage = 'matches';
@@ -11,10 +11,12 @@ require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/notifications.php';
 require_once __DIR__ . '/../includes/matching_engine.php';
+require_once __DIR__ . '/../includes/claim_ml.php';
 
 requireRole('student', 'admin');
 
 $uid = $user['id'];
+$privacyReady = claimMl()->schemaReady();
 
 // Fetch matches for this student's lost items
 $matches = db()->fetchAll(
@@ -23,7 +25,7 @@ $matches = db()->fetchAll(
      li.brand AS lost_brand, li.color AS lost_color, li.description AS lost_desc,
      li.location_id AS lost_loc_id, li.category_id AS lost_cat_id,
      fi.item_name AS found_name, fi.report_number AS found_rn, fi.date_found,
-     fi.brand AS found_brand, fi.color AS found_color, fi.description AS found_desc,
+     fi.brand AS found_brand, fi.color AS found_color, ' . ($privacyReady ? 'fv.public_description' : 'NULL') . ' AS found_desc,
      fi.storage_location, fi.id AS found_id,
      lc.name AS lost_cat, ll.name AS lost_loc,
      fc.name AS found_cat, fl.name AS found_loc
@@ -34,6 +36,7 @@ $matches = db()->fetchAll(
      LEFT JOIN locations  ll ON li.location_id   = ll.id
      LEFT JOIN categories fc ON fi.category_id   = fc.id
      LEFT JOIN locations  fl ON fi.location_id   = fl.id
+     ' . ($privacyReady ? 'LEFT JOIN found_item_verification fv ON fv.found_item_id=fi.id ' : '') . '
      WHERE li.user_id = ?
      ORDER BY m.similarity_score DESC, m.created_at DESC',
     [$uid]
@@ -63,7 +66,7 @@ include __DIR__ . '/../includes/sidebar_student.php';
   <div class="content-area">
     <div class="page-header">
       <div>
-        <h1 class="page-title">AI Match Suggestions</h1>
+        <h1 class="page-title">Item Match Suggestions</h1>
         <p class="page-subtitle">Items that may match your lost reports, ranked by similarity score.</p>
       </div>
     </div>

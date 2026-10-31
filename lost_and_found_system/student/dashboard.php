@@ -65,7 +65,7 @@ include __DIR__ . '/../includes/sidebar_student.php';
     <!-- Welcome Banner Card -->
     <div class="welcome-banner p-4 mb-4 position-relative overflow-hidden">
       <div class="welcome-banner-content">
-        <h2 class="fw-800 mb-1 welcome-banner-title">Welcome back,<br><?= e(explode(' ', $user['name'])[0]) ?>! 👋</h2>
+        <h2 class="fw-800 mb-1 welcome-banner-title text-white">Welcome back,<br><?= e(explode(' ', $user['name'])[0]) ?>! 👋</h2>
         <p class="mb-0 opacity-80 welcome-banner-subtitle"><?= date('l, F j, Y') ?></p>
       </div>
       <div class="welcome-banner-img-wrapper">

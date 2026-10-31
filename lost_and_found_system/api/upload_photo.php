@@ -16,6 +16,7 @@ requireLogin();
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode(['success' => false, 'message' => 'POST required.']); exit;
 }
+verifyCsrf();
 
 $type   = sanitize($_POST['type']   ?? '');
 $itemId = (int)($_POST['item_id']   ?? 0);

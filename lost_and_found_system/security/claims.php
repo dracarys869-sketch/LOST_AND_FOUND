@@ -10,6 +10,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/notifications.php';
+require_once __DIR__ . '/../includes/claim_ml.php';
 
 requireRole('security', 'admin');
 
@@ -18,26 +19,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action  = $_POST['action']  ?? '';
     $claimId = (int)($_POST['claim_id'] ?? 0);
 
-    if ($action === 'approve' && $claimId) {
-        db()->execute('UPDATE claims SET status="approved",reviewed_by=?,review_notes=?,updated_at=NOW() WHERE id=?',
-            [$user['id'], sanitize($_POST['notes']??''), $claimId]);
-        $claim = db()->fetchOne('SELECT c.*,fi.item_name FROM claims c LEFT JOIN found_items fi ON c.found_item_id=fi.id WHERE c.id=?',[$claimId]);
-        if ($claim) {
-            createNotification($claim['claimant_id'],'Claim Approved! 🎉',"Your claim for \"{$claim['item_name']}\" was approved. Visit Security Office.",'success',$claimId,'claim');
-            if ($claim['match_id']) {
-                db()->execute("UPDATE matches SET status='confirmed' WHERE id=?", [$claim['match_id']]);
-            }
+    try {
+        if ($action !== 'review') {
+            http_response_code(403);
+            exit('Only administrators can make final ownership decisions. Use the administrator claims page.');
         }
-        auditLog($user['id'],'APPROVE_CLAIM','claims',$claimId);
-        setFlash('success','Claim approved. Student has been notified.');
-    }
-    if ($action === 'reject' && $claimId) {
-        db()->execute('UPDATE claims SET status="rejected",reviewed_by=?,review_notes=?,updated_at=NOW() WHERE id=?',
-            [$user['id'], sanitize($_POST['notes']??''), $claimId]);
-        $claim = db()->fetchOne('SELECT c.*,fi.item_name FROM claims c LEFT JOIN found_items fi ON c.found_item_id=fi.id WHERE c.id=?',[$claimId]);
-        if ($claim) createNotification($claim['claimant_id'],'Claim Rejected',"Your claim for \"{$claim['item_name']}\" was not approved. Reason: ".sanitize($_POST['notes']??'No reason given.'),'warning',$claimId,'claim');
-        auditLog($user['id'],'REJECT_CLAIM','claims',$claimId);
-        setFlash('warning','Claim rejected.');
+        $notes = ClaimFeatures::text($_POST['notes'] ?? '', 'Private review notes', 4000, 10);
+        claimMl()->saveSecurityReview((int)$user['id'], $claimId, $notes);
+        setFlash('success', 'Private evidence review saved for the administrator.');
+    } catch (InvalidArgumentException | DomainException $e) {
+        setFlash('danger', $e->getMessage());
+    } catch (Throwable $e) {
+        error_log('Security claim review failed: ' . get_class($e));
+        setFlash('danger', 'The review could not be saved. Please try again.');
     }
     redirect(BASE_URL.'/security/claims.php');
 }
@@ -45,11 +39,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $statusFilter = sanitize($_GET['status'] ?? '');
 $focus        = (int)($_GET['focus'] ?? 0);
 $page         = max(1,(int)($_GET['page'] ?? 1));
+$mlReady = claimMl()->schemaReady();
 
 $sql    = 'SELECT c.*, u.name AS claimant_name, u.email AS claimant_email, u.student_id,
-           fi.item_name, fi.report_number AS found_rn, fi.storage_location
+           fi.item_name, fi.report_number AS found_rn, fi.storage_location, ' . ($mlReady ? 'v.security_notes,v.final_decision' : 'NULL AS security_notes,NULL AS final_decision') . '
            FROM claims c LEFT JOIN users u ON c.claimant_id=u.id
-           LEFT JOIN found_items fi ON c.found_item_id=fi.id WHERE 1=1';
+           LEFT JOIN found_items fi ON c.found_item_id=fi.id ' . ($mlReady ? 'LEFT JOIN claim_verifications v ON v.claim_id=c.id ' : '') . 'WHERE 1=1';
 $params = [];
 if ($statusFilter) { $sql .= ' AND c.status=?'; $params[] = $statusFilter; }
 $sql .= ' ORDER BY c.status="pending" DESC, c.created_at ASC';
@@ -67,7 +62,7 @@ include __DIR__ . '/../includes/sidebar_security.php';
   </div>
   <div class="content-area">
     <div class="page-header">
-      <div><h1 class="page-title">Claims Review</h1><p class="page-subtitle">Verify and process ownership claims.</p></div>
+      <div><h1 class="page-title">Claims Review</h1><p class="page-subtitle">Record private evidence for administrator review and release administrator-approved items.</p></div>
     </div>
 
     <div class="d-flex gap-2 mb-3">
@@ -114,18 +109,17 @@ include __DIR__ . '/../includes/sidebar_security.php';
         </div>
       </div>
 
-      <?php if ($claim['status'] === 'pending'): ?>
-      <div class="card-footer d-flex justify-content-end gap-2">
-        <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#actionModal"
-                data-id="<?= $claim['id'] ?>" data-action="reject" data-item="<?= e($claim['item_name']) ?>">
-          <i class="bi bi-x-circle me-1"></i>Reject
-        </button>
-        <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#actionModal"
-                data-id="<?= $claim['id'] ?>" data-action="approve" data-item="<?= e($claim['item_name']) ?>">
-          <i class="bi bi-check-circle me-1"></i>Approve
-        </button>
+      <div class="card-body border-top">
+        <a href="<?= BASE_URL ?>/security/item_verification.php?item_id=<?= $claim['found_item_id'] ?>" class="btn btn-sm btn-outline-secondary mb-3">Private Item Reference</a>
+        <?php if ($user['role'] === 'admin'): ?><a href="<?= BASE_URL ?>/admin/claim_review.php?id=<?= $claim['id'] ?>" class="btn btn-sm btn-outline-primary mb-3">Administrator Review / Decision</a><?php endif; ?>
+        <form method="POST">
+          <?= csrfField() ?><input type="hidden" name="action" value="review"><input type="hidden" name="claim_id" value="<?= $claim['id'] ?>">
+          <label class="form-label" for="notes-<?= $claim['id'] ?>">Private evidence review (visible to staff)</label>
+          <textarea name="notes" id="notes-<?= $claim['id'] ?>" class="form-control mb-2" rows="2" required minlength="10" maxlength="4000"><?= e($claim['security_notes'] ?? '') ?></textarea>
+          <button class="btn btn-sm btn-primary">Save Review for Administrator</button>
+        </form>
       </div>
-      <?php elseif ($claim['status'] === 'approved'): ?>
+      <?php if ($claim['status'] === 'approved' && $claim['final_decision'] === 'approved'): ?>
       <div class="card-footer d-flex justify-content-end">
         <a href="<?= BASE_URL ?>/security/release.php?claim_id=<?= $claim['id'] ?>" class="btn btn-sm btn-primary">
           <i class="bi bi-check2-circle me-1"></i>Record Release
@@ -142,35 +136,7 @@ include __DIR__ . '/../includes/sidebar_security.php';
   </div>
 </div>
 
-<!-- Action Modal -->
-<div class="modal fade" id="actionModal" tabindex="-1">
-  <div class="modal-dialog"><div class="modal-content">
-    <div class="modal-header"><h5 class="modal-title" id="aModalTitle"></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-    <form method="POST">
-      <?= csrfField() ?><input type="hidden" name="action" id="aAction"><input type="hidden" name="claim_id" id="aClaimId">
-      <div class="modal-body">
-        <p id="aDesc"></p>
-        <div class="mb-3"><label class="form-label">Notes (shown to student)</label><textarea name="notes" class="form-control" rows="3" placeholder="Optional note…"></textarea></div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-        <button type="submit" class="btn" id="aBtn">Confirm</button>
-      </div>
-    </form>
-  </div></div>
-</div>
-
 <script>
-document.getElementById('actionModal')?.addEventListener('show.bs.modal',function(e){
-    const b=e.relatedTarget, isApprove=b.dataset.action==='approve';
-    document.getElementById('aAction').value=b.dataset.action;
-    document.getElementById('aClaimId').value=b.dataset.id;
-    document.getElementById('aModalTitle').innerHTML=isApprove?'<i class="bi bi-check-circle text-success me-2"></i>Approve Claim':'<i class="bi bi-x-circle text-danger me-2"></i>Reject Claim';
-    document.getElementById('aDesc').textContent='Item: '+b.dataset.item;
-    const btn=document.getElementById('aBtn');
-    btn.className='btn '+(isApprove?'btn-success':'btn-danger');
-    btn.textContent=isApprove?'Approve':'Reject';
-});
 <?php if ($focus): ?>
 document.getElementById('claim-<?= $focus ?>')?.scrollIntoView({behavior:'smooth',block:'center'});
 <?php endif; ?>

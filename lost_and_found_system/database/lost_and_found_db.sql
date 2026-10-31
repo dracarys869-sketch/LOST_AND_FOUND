@@ -3,6 +3,7 @@
 --  Database: lost_and_found_db
 --  Engine:   MySQL 5.7+ / MariaDB 10.3+
 --  Encoding: utf8mb4
+--  After a fresh import, apply migrations/001_decision_tree.sql.
 -- ============================================================
 
 SET NAMES utf8mb4;

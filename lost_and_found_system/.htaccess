@@ -14,6 +14,10 @@ Options -Indexes
     # Deny access to config/ directly
     RewriteRule ^config/.*$ - [F,L]
 
+    # Ownership-related images are served by the permission-checking PHP endpoint.
+    RewriteRule ^assets/uploads/(lost_items|found_items|claim_proofs)/ - [F,L]
+    RewriteRule ^(scripts|tests)/ - [F,L]
+
     # Deny direct API access without CSRF (handled in PHP, but belt-and-suspenders)
     # RewriteRule ^api/.*$ - [F,L]
 </IfModule>

@@ -27,11 +27,11 @@ define('QR_CODES_URL',   BASE_URL  . '/qr_codes');
 define('ASSETS_URL',     BASE_URL  . '/assets');
 
 // ─── Database ───────────────────────────────────────────────
-define('DB_HOST',    'localhost');
-define('DB_PORT',    '3367');
-define('DB_NAME',    'lost_and_found_db');
-define('DB_USER',    'root');
-define('DB_PASS',    '');
+define('DB_HOST',    getenv('LAF_DB_HOST') ?: 'localhost');
+define('DB_PORT',    getenv('LAF_DB_PORT') ?: '3367');
+define('DB_NAME',    getenv('LAF_DB_NAME') ?: 'lost_and_found_db');
+define('DB_USER',    getenv('LAF_DB_USER') ?: 'root');
+define('DB_PASS',    getenv('LAF_DB_PASS') !== false ? getenv('LAF_DB_PASS') : '');
 define('DB_CHARSET', 'utf8mb4');
 
 // ─── Session ────────────────────────────────────────────────
