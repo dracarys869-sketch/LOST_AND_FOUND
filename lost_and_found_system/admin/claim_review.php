@@ -180,6 +180,9 @@ include __DIR__ . '/../includes/sidebar_admin.php';
           <div class="card-header"><span class="card-title"><i class="bi bi-journal-check"></i> Independent Verification / Training Label</span></div>
           <div class="card-body">
             <p class="text-muted">Label only evidence checked independently of the model. Approval or rejection alone does not create a training label.</p>
+            <div class="alert alert-warning small py-2">
+              <strong>Verification checklist:</strong> confirm at least one private identifier, such as a unique mark, contents/accessory detail, label, serial detail, or independently checked ownership document. Do not copy the claimant's answer into the reference.
+            </div>
             <ul class="small">
               <li><strong>Likely Legitimate:</strong> independent ownership evidence strongly matches.</li>
               <li><strong>Needs Verification:</strong> a documented verification attempt remains inconclusive.</li>
@@ -198,7 +201,7 @@ include __DIR__ . '/../includes/sidebar_admin.php';
               <textarea name="verification_notes" id="verificationNotes" class="form-control mb-3" rows="5" maxlength="4000" placeholder="Record what was independently checked and what matched or conflicted. At least 20 characters for a training label."><?= e($posted('verification_notes', $verification['verification_notes'] ?? '')) ?></textarea>
               <div class="form-check mb-3">
                 <input type="checkbox" class="form-check-input" name="independent_evidence" id="independentEvidence" value="1">
-                <label class="form-check-label small" for="independentEvidence">This label is based on independently checked ownership evidence, not the model recommendation.</label>
+                <label class="form-check-label small" for="independentEvidence">I checked at least one strong ownership identifier independently, and this label is not based on the model recommendation.</label>
               </div>
               <button class="btn btn-primary btn-sm">Save Verification Record</button>
             </form>

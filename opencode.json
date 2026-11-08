@@ -6,7 +6,7 @@
       "name": "AgentRouter (OpenAI Compatible)",
       "options": {
         "baseURL": "https://agentrouter.org/v1",
-        "apiKey": "sk-tS3jVFUfgFOQbA62tlmw4GIYrhSLCaOGWYjrZ1bCxSlkkDkU"
+        "apiKey": "sk-YI5f3YZcnUEDuQzmHfiF6NgK2MZyM7v94yl3D0YS77Tj8WtA"
       },
       "models": {
         "gpt-6-astra": {

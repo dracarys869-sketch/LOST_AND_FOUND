@@ -212,8 +212,10 @@ include __DIR__ . '/../includes/sidebar_admin.php';
                   <code style="font-size:.7rem;"><?= e($m['found_rn']) ?></code>
                 </td>
                 <td>
-                  <div class="d-flex align-items-center gap-1">
-                    <div style="background:var(--primary);height:6px;border-radius:3px;width:<?= min(100,$m['similarity_score']) ?>px;max-width:80px;"></div>
+                  <div class="d-flex align-items-center gap-2">
+                    <div style="background:var(--surface-3);height:6px;border-radius:3px;width:70px;overflow:hidden;flex-shrink:0;">
+                      <div style="background:linear-gradient(90deg,var(--accent),var(--primary));height:100%;border-radius:3px;width:<?= (float)min(100, $m['similarity_score']) ?>%;"></div>
+                    </div>
                     <strong style="font-size:.82rem;"><?= number_format($m['similarity_score'],1) ?>%</strong>
                   </div>
                 </td>

@@ -26,13 +26,16 @@ $pendingMatches  = db()->fetchOne('SELECT COUNT(*) AS c FROM matches WHERE statu
 ?>
 
 <nav class="sidebar" id="sidebar">
-  <!-- User info -->
-  <div class="sidebar-user">
-    <div class="sidebar-avatar"><?= userInitials($u['name']) ?></div>
-    <div>
-      <div class="sidebar-user-name"><?= e($u['name']) ?></div>
-      <div class="sidebar-user-role">Administrator</div>
+  <!-- Brand -->
+  <div class="sidebar-brand">
+    <div class="sidebar-brand-icon"><img src="<?= ASSETS_URL ?>/images/lost-found-logo.png" alt="Lost and Found logo"></div>
+    <div class="sidebar-brand-text">
+      <div class="sidebar-brand-name"><?= e($schoolName) ?></div>
+      <span class="sidebar-brand-sub">Lost &amp; Found Portal</span>
     </div>
+    <button type="button" class="sidebar-close d-lg-none" id="sidebarClose" aria-label="Close navigation">
+      <i class="bi bi-x-lg"></i>
+    </button>
   </div>
 
   <!-- Nav -->
@@ -66,9 +69,16 @@ $pendingMatches  = db()->fetchOne('SELECT COUNT(*) AS c FROM matches WHERE statu
       </span>
       <button class="dark-toggle <?= $isDark ? 'active' : '' ?>" id="darkToggle" aria-label="Toggle dark mode"></button>
     </div>
-    <a href="<?= BASE_URL ?>/logout.php" class="nav-link-sidebar px-2">
-      <i class="bi bi-box-arrow-left"></i> Logout
-    </a>
+    <div class="sidebar-account">
+      <div class="sidebar-avatar"><?= userInitials($u['name']) ?></div>
+      <div class="sidebar-account-info">
+        <div class="sidebar-user-name"><?= e($u['name']) ?></div>
+        <div class="sidebar-user-role">Administrator</div>
+      </div>
+      <a href="<?= BASE_URL ?>/logout.php" class="sidebar-logout" aria-label="Log out" title="Log out">
+        <i class="bi bi-box-arrow-right"></i>
+      </a>
+    </div>
   </div>
 </nav>
 

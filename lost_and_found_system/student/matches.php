@@ -46,7 +46,7 @@ $matches = db()->fetchAll(
 $selectedId = (int)($_GET['id'] ?? 0);
 $selected   = null;
 foreach ($matches as $m) {
-    if ($m['id'] === $selectedId) { $selected = $m; break; }
+    if ((int)$m['id'] === $selectedId) { $selected = $m; break; }
 }
 
 $extraHead = '<script>const BASE_URL="' . BASE_URL . '";</script>';
@@ -85,7 +85,7 @@ include __DIR__ . '/../includes/sidebar_student.php';
         <?php foreach ($matches as $m): ?>
         <?php
         $scoreColor = $m['similarity_score'] >= 90 ? 'green' : ($m['similarity_score'] >= 75 ? 'blue' : 'orange');
-        $isSelected = $m['id'] === $selectedId;
+        $isSelected = (int)$m['id'] === $selectedId;
         ?>
         <a href="?id=<?= $m['id'] ?>" class="text-decoration-none">
           <div class="card mb-2 <?= $isSelected ? 'border-primary' : '' ?>"

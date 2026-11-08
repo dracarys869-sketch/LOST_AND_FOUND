@@ -43,6 +43,9 @@ if ($ready) {
     }
 }
 $percent = static fn(float $value): string => number_format($value * 100, 2) . '%';
+$requiredLabels = count(ClaimFeatures::LABELS) * ClaimTraining::MIN_PER_CLASS;
+$labeledTotal = $overview ? array_sum(array_map('array_sum', $overview['counts'])) : 0;
+$readinessProgress = min(100, (int)round($labeledTotal / max(1, ClaimTraining::MIN_RECORDS) * 100));
 include __DIR__ . '/../includes/header.php';
 include __DIR__ . '/../includes/sidebar_admin.php';
 ?>
@@ -64,8 +67,12 @@ include __DIR__ . '/../includes/sidebar_admin.php';
           <div class="card-body">
             <p>Only administrator-labeled, independently reviewed claims with original submission-time snapshots are eligible. Historical approvals, rejections, pending statuses, and predictions are never converted into labels automatically.</p>
             <?php if ($overview): ?>
-              <div class="table-responsive"><table class="table table-sm"><thead><tr><th>Independent label</th><th>Training</th><th>Held-out test</th></tr></thead><tbody>
-              <?php foreach (ClaimFeatures::LABELS as $label): ?><tr><td><?= e($label) ?></td><td><?= $overview['counts']['train'][$label] ?></td><td><?= $overview['counts']['test'][$label] ?></td></tr><?php endforeach; ?>
+              <div class="d-flex justify-content-between small mb-1"><span>Overall data collection progress</span><strong><?= $readinessProgress ?>%</strong></div>
+              <div class="progress mb-3" role="progressbar" aria-label="Overall data collection progress" aria-valuenow="<?= $readinessProgress ?>" aria-valuemin="0" aria-valuemax="100">
+                <div class="progress-bar" style="width:<?= $readinessProgress ?>%"></div>
+              </div>
+              <div class="table-responsive"><table class="table table-sm"><thead><tr><th>Independent label</th><th>Training</th><th>Held-out test</th><th>Collection gap</th></tr></thead><tbody>
+              <?php foreach (ClaimFeatures::LABELS as $label): $labelTotal = $overview['counts']['train'][$label] + $overview['counts']['test'][$label]; ?><tr><td><?= e($label) ?></td><td><?= $overview['counts']['train'][$label] ?></td><td><?= $overview['counts']['test'][$label] ?></td><td><?= max(0, ClaimTraining::MIN_PER_CLASS - $labelTotal) ?> more needed</td></tr><?php endforeach; ?>
               </tbody></table></div>
               <p class="small text-muted">Eligible: <?= $overview['eligible'] ?> · Invalid snapshots skipped: <?= $overview['skipped'] ?> · Connected train/test conflicts excluded: <?= $overview['excluded'] ?>.</p>
               <?php if ($overview['problems']): ?><ul class="small mb-3"><?php foreach ($overview['problems'] as $problem): ?><li><?= e($problem) ?></li><?php endforeach; ?></ul><?php endif; ?>

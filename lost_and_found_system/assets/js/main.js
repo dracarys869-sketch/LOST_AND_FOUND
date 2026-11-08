@@ -30,6 +30,7 @@ window.addEventListener('load', () => {
 const sidebar   = document.getElementById('sidebar');
 const overlay   = document.getElementById('sidebarOverlay');
 const sidebarToggle = document.getElementById('sidebarToggle');
+const sidebarClose  = document.getElementById('sidebarClose');
 
 function openSidebar() {
     sidebar?.classList.add('open');
@@ -44,7 +45,11 @@ function closeSidebar() {
 }
 
 sidebarToggle?.addEventListener('click', openSidebar);
+sidebarClose?.addEventListener('click', closeSidebar);
 overlay?.addEventListener('click', closeSidebar);
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && sidebar?.classList.contains('open')) closeSidebar();
+});
 
 // Auto-close sidebar on nav link tap (mobile)
 sidebar?.querySelectorAll('.nav-link-sidebar').forEach(link => {
@@ -170,22 +175,51 @@ function initImagePreviews(inputId, gridId) {
     const grid  = document.getElementById(gridId);
     if (!input || !grid) return;
 
-    input.addEventListener('change', () => {
+    const render = () => {
         grid.innerHTML = '';
         Array.from(input.files).forEach((file, i) => {
+            if (!file.type.startsWith('image/')) return;
             const reader = new FileReader();
             reader.onload = (e) => {
                 const div = document.createElement('div');
                 div.className = 'photo-preview-item';
-                div.innerHTML = `
-                    <img src="${e.target.result}" alt="Preview">
-                    <button type="button" class="remove-btn" onclick="removePreview(this, ${i})">
-                        <i class="bi bi-x"></i>
-                    </button>`;
+                const img = document.createElement('img');
+                img.src = e.target.result;
+                img.alt = 'Preview of ' + file.name;
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'remove-btn';
+                btn.dataset.index = String(i);
+                btn.setAttribute('aria-label', 'Remove photo');
+                btn.innerHTML = '<i class="bi bi-x"></i>';
+                div.append(img, btn);
                 grid.appendChild(div);
             };
             reader.readAsDataURL(file);
         });
+    };
+
+    input.addEventListener('change', render);
+
+    // Event delegation so dynamically-added buttons always work.
+    grid.addEventListener('click', (event) => {
+        const btn = event.target.closest('.remove-btn');
+        if (!btn) return;
+        event.preventDefault();
+        const index = Number(btn.dataset.index);
+        if (Number.isNaN(index)) return;
+
+        const dt = new DataTransfer();
+        Array.from(input.files).forEach((file, i) => {
+            if (i !== index) dt.items.add(file);
+        });
+        try {
+            input.files = dt.files;
+        } catch (err) {
+            // Older browsers: fall back to clearing the selection.
+            input.value = '';
+        }
+        render();
     });
 }
 
@@ -195,15 +229,30 @@ function initDropZone(zoneId, inputId) {
     const input = document.getElementById(inputId);
     if (!zone || !input) return;
 
-    zone.addEventListener('click', () => input.click());
+    zone.setAttribute('role', 'button');
+    zone.setAttribute('tabindex', '0');
+
+    const openPicker = () => input.click();
+    zone.addEventListener('click', openPicker);
+    zone.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPicker(); }
+    });
     zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('dragover'); });
     zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
     zone.addEventListener('drop', (e) => {
         e.preventDefault();
         zone.classList.remove('dragover');
-        if (e.dataTransfer.files.length) {
-            input.files = e.dataTransfer.files;
+        if (!e.dataTransfer?.files?.length) return;
+        const dt = new DataTransfer();
+        Array.from(e.dataTransfer.files).forEach((file) => {
+            if (file.type.startsWith('image/')) dt.items.add(file);
+        });
+        if (!dt.files.length) return;
+        try {
+            input.files = dt.files;
             input.dispatchEvent(new Event('change'));
+        } catch (err) {
+            showToast('warning', 'Upload not supported', 'Please use the file picker to select photos.');
         }
     });
 }

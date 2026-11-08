@@ -34,6 +34,7 @@ $pageTitle    = isset($pageTitle) ? e($pageTitle) . ' — ' . e($schoolName) : e
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="description" content="<?= e($schoolName) ?> Lost and Found Management System">
   <title><?= $pageTitle ?></title>
+  <link rel="icon" type="image/png" href="<?= ASSETS_URL ?>/images/lost-found-logo.png">
 
   <!-- Bootstrap 5 -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">

@@ -146,13 +146,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 if ($step === 2 && !empty($_SESSION['dev_otp'])) {
     $devOtp = $_SESSION['dev_otp'];
 }
+
+$isDark = isset($_COOKIE['dark_mode']) && $_COOKIE['dark_mode'] === '1';
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" <?= $isDark ? 'data-theme="dark"' : '' ?>>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Reset Password — <?= e(getSetting('school_name', APP_NAME)) ?></title>
+  <link rel="icon" type="image/png" href="<?= ASSETS_URL ?>/images/lost-found-logo.png">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="<?= ASSETS_URL ?>/css/style.css?v=<?= filemtime(BASE_PATH . '/assets/css/style.css') ?>">
@@ -167,14 +170,14 @@ if ($step === 2 && !empty($_SESSION['dev_otp'])) {
       <div class="col-lg-5 col-md-8 col-sm-10">
         <div class="card border-0 shadow-lg p-4 p-md-5 auth-card" style="width: 100%;">
           <div class="mb-4 d-flex align-items-center justify-content-between" style="position: relative;">
-            <a href="<?= BASE_URL ?>/" class="btn btn-icon text-white bg-transparent opacity-75 hover-opacity-100 p-0"
+            <a href="<?= BASE_URL ?>/" class="btn btn-icon bg-transparent p-0 auth-back-btn"
                style="font-size: 1.5rem; position: absolute; left: 0; top: 50%; transform: translateY(-50%); z-index: 20;"
                title="Back to Public Feed">
               <i class="bi bi-arrow-left-circle"></i>
             </a>
             <div class="w-100 text-center">
-              <h1 class="auth-form-title fw-800 text-white" style="font-size: 1.6rem; margin-bottom: 0.25rem; margin-top: 0.25rem;">Reset Password</h1>
-              <p class="text-muted-sm mb-0" style="color: var(--primary-light) !important; font-size: 0.85rem;">
+              <h1 class="auth-form-title fw-800" style="font-size: 1.6rem; margin-bottom: 0.25rem; margin-top: 0.25rem; color: var(--text);">Reset Password</h1>
+              <p class="text-muted-sm mb-0" style="color: var(--text-muted) !important; font-size: 0.85rem;">
                 <?= $step === 1 ? 'Enter email to request One-Time PIN' : 'Verify OTP and set a new password' ?>
               </p>
             </div>
@@ -189,6 +192,13 @@ if ($step === 2 && !empty($_SESSION['dev_otp'])) {
           <?php if ($success): ?>
           <div class="alert alert-success border-0 bg-success bg-opacity-10 text-success mb-3" style="font-size:0.8rem; border-radius: 8px;">
             <i class="bi bi-check-circle me-2"></i> <?= e($success) ?>
+          </div>
+          <?php endif; ?>
+
+          <?php if ($devOtp): ?>
+          <div class="alert alert-warning border-0 bg-warning bg-opacity-10 mb-3 text-center" style="border-radius: 10px;">
+            <div style="font-size:.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#9A5B00;">Test OTP Code</div>
+            <div style="font-size:1.6rem;font-weight:800;letter-spacing:.35em;color:#9A5B00;margin-top:.25rem;"><?= e($devOtp) ?></div>
           </div>
           <?php endif; ?>
 

@@ -12,14 +12,26 @@ if (isLoggedIn()) { redirect(dashboardUrl()); }
 
 $error = '';
 
+if (!isset($_SESSION['login_captcha_a'], $_SESSION['login_captcha_b'])) {
+    $_SESSION['login_captcha_a'] = random_int(1, 9);
+    $_SESSION['login_captcha_b'] = random_int(1, 9);
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verifyCsrf();
 
     $email    = sanitize($_POST['email']    ?? '');
     $password = $_POST['password']          ?? '';
+    $captcha  = trim((string)($_POST['captcha'] ?? ''));
     $remember = !empty($_POST['remember_me']);
 
-    if (empty($email) || empty($password)) {
+    $captchaExpected = (int)$_SESSION['login_captcha_a'] + (int)$_SESSION['login_captcha_b'];
+    $captchaValid = $captcha !== '' && ctype_digit($captcha) && (int)$captcha === $captchaExpected;
+    unset($_SESSION['login_captcha_a'], $_SESSION['login_captcha_b']);
+
+    if (!$captchaValid) {
+        $error = 'Please solve the arithmetic CAPTCHA correctly.';
+    } elseif (empty($email) || empty($password)) {
         $error = 'Please enter your email and password.';
     } else {
         $user = db()->fetchOne(
@@ -45,16 +57,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             redirect($redirect);
         }
     }
+
+    if (!isLoggedIn()) {
+        $_SESSION['login_captcha_a'] = random_int(1, 9);
+        $_SESSION['login_captcha_b'] = random_int(1, 9);
+    }
 }
 
 $timeout = isset($_GET['timeout']);
+$isDark  = isset($_COOKIE['dark_mode']) && $_COOKIE['dark_mode'] === '1';
+$captchaQuestion = (int)$_SESSION['login_captcha_a'] . ' + ' . (int)$_SESSION['login_captcha_b'];
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" <?= $isDark ? 'data-theme="dark"' : '' ?>>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Sign In — <?= e(getSetting('school_name', APP_NAME)) ?></title>
+  <link rel="icon" type="image/png" href="<?= ASSETS_URL ?>/images/lost-found-logo.png">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="<?= ASSETS_URL ?>/css/style.css?v=<?= filemtime(BASE_PATH . '/assets/css/style.css') ?>">
@@ -70,29 +90,9 @@ $timeout = isset($_GET['timeout']);
       <!-- Left side info (visible on large screens) -->
       <div class="col-lg-6 d-none d-lg-block text-lg-start auth-info-col">
         <div class="auth-info-content">
-          <div class="auth-logo-icon animate-float">
-            <i class="bi bi-search-heart text-primary"></i>
-          </div>
           <h2 class="fw-800 text-primary mb-2 auth-info-title"><?= e(getSetting('school_name', 'School')) ?></h2>
           <p class="auth-info-desc">Lost &amp; Found Portal — A modern, automated system to easily report, match, and reclaim lost items on campus.</p>
 
-          <div class="d-flex flex-column gap-3">
-            <?php foreach ([
-                ['bi-link-45deg','Smart Matching','Auto-pairs lost & found items'],
-                ['bi-qr-code-scan','QR Tracking','Every item gets a scannable code'],
-                ['bi-bell','Notifications','Real-time status updates'],
-            ] as [$ic,$tl,$ds]): ?>
-              <div class="d-flex align-items-center gap-3 auth-feature-item">
-                <div class="auth-feature-icon-wrapper">
-                  <i class="bi <?= $ic ?> text-primary" style="font-size: 1.25rem;"></i>
-                </div>
-                <div>
-                  <div class="fw-700 text-primary" style="font-size: 0.88rem;"><?= $tl ?></div>
-                  <div style="font-size: 0.75rem; color: var(--text-muted);"><?= $ds ?></div>
-                </div>
-              </div>
-            <?php endforeach; ?>
-          </div>
         </div>
       </div>
 
@@ -150,6 +150,17 @@ $timeout = isset($_GET['timeout']);
               </div>
             </div>
 
+            <div class="mb-3">
+              <label for="captcha" class="form-label fw-600">Security Check</label>
+              <div class="input-group">
+                <span class="input-group-text border-end-0"><i class="bi bi-calculator"></i></span>
+                <span class="input-group-text captcha-question"><?= e($captchaQuestion) ?> =</span>
+                <input type="text" id="captcha" name="captcha"
+                       class="form-control border-start-0" placeholder="Answer"
+                       inputmode="numeric" pattern="[0-9]*" required autocomplete="off">
+              </div>
+            </div>
+
             <div class="d-flex align-items-center justify-content-between mb-4">
               <div class="form-check">
                 <input type="checkbox" class="form-check-input" id="remember_me" name="remember_me">
@@ -158,7 +169,7 @@ $timeout = isset($_GET['timeout']);
               <a href="<?= BASE_URL ?>/forgot_password.php" class="text-decoration-none fw-600" style="font-size:.82rem; color: var(--primary);">Forgot password?</a>
             </div>
 
-            <button type="submit" class="btn btn-primary w-100 py-2.5 mb-3 fw-600" id="loginBtn">
+            <button type="submit" class="btn btn-primary w-100 py-2 mb-3 fw-600" id="loginBtn">
               <i class="bi bi-box-arrow-in-right me-2"></i> Sign In
             </button>
           </form>

@@ -65,7 +65,7 @@ include __DIR__ . '/../includes/sidebar_student.php';
     <!-- Welcome Banner Card -->
     <div class="welcome-banner p-4 mb-4 position-relative overflow-hidden">
       <div class="welcome-banner-content">
-        <h2 class="fw-800 mb-1 welcome-banner-title text-white">Welcome back,<br><?= e(explode(' ', $user['name'])[0]) ?>! 👋</h2>
+        <h2 class="fw-800 mb-1 welcome-banner-title text-white">Welcome, <?= e(explode(' ', $user['name'])[0]) ?>! 👋</h2>
         <p class="mb-0 opacity-80 welcome-banner-subtitle"><?= date('l, F j, Y') ?></p>
       </div>
       <div class="welcome-banner-img-wrapper">
@@ -111,7 +111,7 @@ include __DIR__ . '/../includes/sidebar_student.php';
       foreach ($kpis as [$ic,$lb,$vl,$cl,$hr,$sl]):
       ?>
       <div class="col-6 col-md-3 d-flex">
-        <a href="<?= $hr ?>" class="stat-card stat-card-surface text-decoration-none d-flex align-items-center gap-3 p-3 w-100">
+        <a href="<?= $hr ?>" class="stat-card <?= $cl ?> text-decoration-none w-100">
           <div class="stat-icon <?= $cl ?>" style="width: 44px; height: 44px; font-size: 1.25rem;"><i class="bi <?= $ic ?>"></i></div>
           <div class="stat-info">
             <div class="stat-value" style="font-size: 1.5rem; font-family: 'Outfit'; line-height: 1;"><?= number_format((int)$vl) ?></div>

@@ -38,22 +38,32 @@ $foundItems = db()->fetchAll(
      WHERE fi.status = "active"
      ORDER BY fi.created_at DESC LIMIT 6'
 );
+$hiddenLostCount = (int)(db()->fetchOne(
+    'SELECT COUNT(*) AS c FROM lost_items WHERE status <> "active"'
+)['c'] ?? 0);
+$hiddenFoundCount = (int)(db()->fetchOne(
+    'SELECT COUNT(*) AS c FROM found_items WHERE status <> "active"'
+)['c'] ?? 0);
+
+$schoolName = getSetting('school_name', APP_NAME);
+$isDark     = isset($_COOKIE['dark_mode']) && $_COOKIE['dark_mode'] === '1';
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" <?= $isDark ? 'data-theme="dark"' : '' ?>>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="School Lost and Found Management System — Report, track, and recover lost items on campus.">
-  <title>Lost &amp; Found — Gian Saad Academy</title>
+  <meta name="description" content="<?= e($schoolName) ?> Lost and Found Management System — Report, track, and recover lost items on campus.">
+  <title>Lost &amp; Found — <?= e($schoolName) ?></title>
+  <link rel="icon" type="image/png" href="<?= ASSETS_URL ?>/images/lost-found-logo.png">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="<?= ASSETS_URL ?>/css/style.css?v=<?= filemtime(BASE_PATH . '/assets/css/style.css') ?>">
 </head>
-<body style="background: var(--bg); color: var(--text);">
+<body>
 
 <!-- Hero Section -->
-<section class="landing-hero" style="min-height: 85vh; padding-bottom: 5rem;">
+<section class="landing-hero">
   <div class="hero-content animate-fade-in">
     <div class="hero-badge">
       <i class="bi bi-shield-check"></i> Campus Lost &amp; Found Portal
@@ -76,23 +86,23 @@ $foundItems = db()->fetchAll(
 </section>
 
 <!-- Public Items Feed -->
-<section class="container py-5" style="margin-top: -3rem; position: relative; z-index: 10;">
-  <div class="card shadow-lg border-0" style="border-radius: var(--radius-md);">
-    <div class="card-header bg-white border-0 pt-4 px-4">
-      <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+<section class="container landing-feed py-5" style="margin-top: -3.5rem; position: relative; z-index: 10;">
+  <div class="card public-feed-card">
+    <div class="card-header border-0 pt-4 px-4">
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 w-100">
         <div>
-          <h2 class="fw-800 text-primary mb-1" style="font-size: 1.5rem;">Public Feed</h2>
-          <p class="text-muted mb-0" style="font-size: 0.85rem;">Browse recently reported items on campus</p>
+          <h2 class="fw-800 mb-1" style="font-size: 1.5rem; color: var(--text);">Public Feed</h2>
+          <p class="mb-0" style="font-size: 0.85rem; color: var(--text-muted);">Browse recently reported items on campus</p>
         </div>
         <ul class="nav nav-pills" id="feedTabs" role="tablist">
           <li class="nav-item" role="presentation">
-            <button class="nav-link active btn-sm px-3" id="lost-tab" data-bs-toggle="pill" data-bs-target="#lost-pane" type="button" role="tab" aria-selected="true">
-              <i class="bi bi-search me-1"></i> Lost Items
+            <button class="nav-link active" id="lost-tab" data-bs-toggle="pill" data-bs-target="#lost-pane" type="button" role="tab" aria-selected="true">
+              <i class="bi bi-search me-1"></i> Lost Items <span class="badge rounded-pill bg-light text-primary"><?= count($lostItems) ?></span>
             </button>
           </li>
           <li class="nav-item" role="presentation">
-            <button class="nav-link btn-sm px-3" id="found-tab" data-bs-toggle="pill" data-bs-target="#found-pane" type="button" role="tab" aria-selected="false">
-              <i class="bi bi-box-seam me-1"></i> Found Items
+            <button class="nav-link" id="found-tab" data-bs-toggle="pill" data-bs-target="#found-pane" type="button" role="tab" aria-selected="false">
+              <i class="bi bi-box-seam me-1"></i> Found Items <span class="badge rounded-pill bg-light text-primary"><?= count($foundItems) ?></span>
             </button>
           </li>
         </ul>
@@ -103,90 +113,109 @@ $foundItems = db()->fetchAll(
         <!-- Lost Pane -->
         <div class="tab-pane fade show active" id="lost-pane" role="tabpanel" tabindex="0">
           <?php if (empty($lostItems)): ?>
-            <div class="text-center py-5 text-muted">
-              <i class="bi bi-info-circle display-4 mb-2"></i>
-              <p>No active lost item reports currently listed.</p>
+            <div class="empty-state py-5">
+              <i class="bi bi-inbox"></i>
+              <h5>No active lost reports</h5>
+              <p>No active lost item reports are currently listed. Items that are matched, claimed, or closed are not shown here.</p>
             </div>
           <?php else: ?>
             <div class="row g-4">
-              <?php foreach ($lostItems as $item): 
+              <?php foreach ($lostItems as $item):
                 $photo = itemPrimaryPhoto('lost', $item['id']);
+                $sub   = implode(' · ', array_filter([$item['brand'], $item['color']]));
+                $sub   = $sub !== '' ? e($sub) : 'No additional details';
               ?>
                 <div class="col-md-6 col-lg-4">
-                  <div class="card h-100 border" style="border-radius: var(--radius);">
-                    <?php if ($photo): ?>
-                      <img src="<?= e($photo) ?>" class="card-img-top" style="height: 180px; object-fit: cover;" alt="<?= e($item['item_name']) ?>">
-                    <?php else: ?>
-                      <div class="d-flex align-items-center justify-content-center bg-light text-muted" style="height: 180px;">
-                        <i class="bi bi-image" style="font-size: 2.5rem;"></i>
-                      </div>
-                    <?php endif; ?>
-                    <div class="card-body d-flex flex-direction-column justify-content-between">
+                  <article class="card public-item-card h-100">
+                    <div class="public-item-media">
+                      <?php if ($photo): ?>
+                        <img src="<?= e($photo) ?>" alt="<?= e($item['item_name']) ?>" loading="lazy">
+                      <?php else: ?>
+                        <div class="media-placeholder"><i class="bi bi-image"></i></div>
+                      <?php endif; ?>
+                      <span class="public-item-badge lost">Lost</span>
+                    </div>
+                    <div class="public-item-body">
                       <div>
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                          <h5 class="fw-700 text-truncate mb-0" style="font-size: 1rem; max-width: 75%;"><?= e($item['item_name']) ?></h5>
-                          <span class="badge bg-warning text-dark" style="font-size: 0.65rem;">Lost</span>
-                        </div>
-                        <p class="text-muted-sm mb-3" style="font-size: 0.8rem;"><?= e(implode(' · ', array_filter([$item['brand'], $item['color']]))) ?></p>
+                        <h3 class="public-item-title text-truncate" title="<?= e($item['item_name']) ?>"><?= e($item['item_name']) ?></h3>
+                        <p class="public-item-sub"><?= $sub ?></p>
                       </div>
-                      <div class="border-top pt-2" style="font-size: 0.75rem;">
-                        <div class="mb-1"><i class="bi bi-tag me-1 text-primary"></i><strong>Category:</strong> <?= e($item['cat']) ?></div>
-                        <div class="mb-1"><i class="bi bi-geo-alt me-1 text-primary"></i><strong>Last Seen:</strong> <?= e($item['loc']) ?></div>
-                        <div><i class="bi bi-calendar-event me-1 text-primary"></i><strong>Date Lost:</strong> <?= formatDate($item['date_lost']) ?></div>
+                      <div class="public-item-meta">
+                        <div class="meta-row"><i class="bi bi-tag"></i><span><strong>Category:</strong> <?= e($item['cat'] ?: 'Uncategorized') ?></span></div>
+                        <div class="meta-row"><i class="bi bi-geo-alt"></i><span><strong>Last seen:</strong> <?= e($item['loc'] ?: 'Unknown') ?></span></div>
+                        <div class="meta-row"><i class="bi bi-calendar-event"></i><span><strong>Date lost:</strong> <?= formatDate($item['date_lost']) ?></span></div>
                       </div>
                     </div>
-                  </div>
+                  </article>
                 </div>
               <?php endforeach; ?>
             </div>
+            <?php if ($hiddenLostCount > 0): ?>
+              <p class="small text-muted mt-4 mb-0"><i class="bi bi-info-circle me-1"></i><?= $hiddenLostCount ?> older lost report<?= $hiddenLostCount === 1 ? '' : 's' ?> hidden because the status is matched, claimed, or closed.</p>
+            <?php endif; ?>
           <?php endif; ?>
         </div>
 
         <!-- Found Pane -->
         <div class="tab-pane fade" id="found-pane" role="tabpanel" tabindex="0">
           <?php if (empty($foundItems)): ?>
-            <div class="text-center py-5 text-muted">
-              <i class="bi bi-info-circle display-4 mb-2"></i>
-              <p>No active found item reports currently listed.</p>
+            <div class="empty-state py-5">
+              <i class="bi bi-inbox"></i>
+              <h5>No active found reports</h5>
+              <p>No active found item reports are currently listed. Items that are matched, claimed, or released are not shown here.</p>
             </div>
           <?php else: ?>
             <div class="row g-4">
-              <?php foreach ($foundItems as $item): 
+              <?php foreach ($foundItems as $item):
                 $photo = itemPrimaryPhoto('found', $item['id']);
+                $sub   = implode(' · ', array_filter([$item['brand'], $item['color']]));
+                $sub   = $sub !== '' ? e($sub) : (!empty($item['description']) ? snippet($item['description'], 60) : 'No additional details');
               ?>
                 <div class="col-md-6 col-lg-4">
-                  <div class="card h-100 border" style="border-radius: var(--radius);">
-                    <?php if ($photo): ?>
-                      <img src="<?= e($photo) ?>" class="card-img-top" style="height: 180px; object-fit: cover;" alt="<?= e($item['item_name']) ?>">
-                    <?php else: ?>
-                      <div class="d-flex align-items-center justify-content-center bg-light text-muted" style="height: 180px;">
-                        <i class="bi bi-image" style="font-size: 2.5rem;"></i>
-                      </div>
-                    <?php endif; ?>
-                    <div class="card-body d-flex flex-direction-column justify-content-between">
+                  <article class="card public-item-card h-100">
+                    <div class="public-item-media">
+                      <?php if ($photo): ?>
+                        <img src="<?= e($photo) ?>" alt="<?= e($item['item_name']) ?>" loading="lazy">
+                      <?php else: ?>
+                        <div class="media-placeholder"><i class="bi bi-image"></i></div>
+                      <?php endif; ?>
+                      <span class="public-item-badge found">Found</span>
+                    </div>
+                    <div class="public-item-body">
                       <div>
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                          <h5 class="fw-700 text-truncate mb-0" style="font-size: 1rem; max-width: 75%;"><?= e($item['item_name']) ?></h5>
-                          <span class="badge bg-success" style="font-size: 0.65rem;">Found</span>
-                        </div>
-                        <p class="text-muted-sm mb-3" style="font-size: 0.8rem;"><?= snippet($item['description'] ?? '', 80) ?></p>
+                        <h3 class="public-item-title text-truncate" title="<?= e($item['item_name']) ?>"><?= e($item['item_name']) ?></h3>
+                        <p class="public-item-sub"><?= $sub ?></p>
                       </div>
-                      <div class="border-top pt-2" style="font-size: 0.75rem;">
-                        <div class="mb-1"><i class="bi bi-tag me-1 text-primary"></i><strong>Category:</strong> <?= e($item['cat']) ?></div>
-                        <div class="mb-1"><i class="bi bi-geo-alt me-1 text-primary"></i><strong>Location:</strong> <?= e($item['loc']) ?></div>
-                        <div><i class="bi bi-calendar-event me-1 text-primary"></i><strong>Date Found:</strong> <?= formatDate($item['date_found']) ?></div>
+                      <div class="public-item-meta">
+                        <div class="meta-row"><i class="bi bi-tag"></i><span><strong>Category:</strong> <?= e($item['cat'] ?: 'Uncategorized') ?></span></div>
+                        <div class="meta-row"><i class="bi bi-geo-alt"></i><span><strong>Location:</strong> <?= e($item['loc'] ?: 'Unknown') ?></span></div>
+                        <div class="meta-row"><i class="bi bi-calendar-event"></i><span><strong>Date found:</strong> <?= formatDate($item['date_found']) ?></span></div>
                       </div>
                     </div>
-                  </div>
+                  </article>
                 </div>
               <?php endforeach; ?>
             </div>
+            <?php if ($hiddenFoundCount > 0): ?>
+              <p class="small text-muted mt-4 mb-0"><i class="bi bi-info-circle me-1"></i><?= $hiddenFoundCount ?> older found report<?= $hiddenFoundCount === 1 ? '' : 's' ?> hidden because the status is matched, claimed, or released.</p>
+            <?php endif; ?>
           <?php endif; ?>
         </div>
       </div>
     </div>
   </div>
 </section>
+
+<footer class="landing-footer">
+  <div class="landing-footer-inner">
+    <span>&copy; <?= date('Y') ?> <?= e($schoolName) ?>. All rights reserved.</span>
+    <span>
+      <a href="<?= BASE_URL ?>/login.php">Sign In</a>
+      <span class="mx-2">·</span>
+      <a href="<?= BASE_URL ?>/register.php">Create Account</a>
+    </span>
+  </div>
+</footer>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>

@@ -18,11 +18,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $keys = ['school_name','school_address','school_email','school_phone',
              'match_threshold','session_timeout','max_upload_size','items_per_page',
              'allow_registration','maintenance_mode'];
+    $checkboxes = ['allow_registration','maintenance_mode'];
     foreach ($keys as $key) {
-        if (isset($_POST[$key])) {
+        if (in_array($key, $checkboxes, true)) {
+            // Unchecked checkboxes are absent from POST — persist "0" explicitly.
+            $val = isset($_POST[$key]) ? '1' : '0';
+        } elseif (isset($_POST[$key])) {
             $val = sanitize($_POST[$key]);
-            db()->execute('UPDATE settings SET setting_value=? WHERE setting_key=?', [$val, $key]);
+        } else {
+            continue;
         }
+        db()->execute('UPDATE settings SET setting_value=? WHERE setting_key=?', [$val, $key]);
     }
     auditLog($user['id'], 'UPDATE_SETTINGS', 'settings', null);
     setFlash('success', 'Settings saved successfully.');
@@ -107,7 +113,7 @@ include __DIR__ . '/../includes/sidebar_admin.php';
                 <label class="form-label">Items Per Page</label>
                 <select name="items_per_page" class="form-select">
                   <?php foreach ([5,10,15,20,25,50] as $n): ?>
-                  <option value="<?= $n ?>" <?= $sv('items_per_page','10')===$n?'selected':'' ?>><?= $n ?></option>
+                  <option value="<?= $n ?>" <?= (int)$sv('items_per_page', '10') === $n ? 'selected' : '' ?>><?= $n ?></option>
                   <?php endforeach; ?>
                 </select>
               </div>
