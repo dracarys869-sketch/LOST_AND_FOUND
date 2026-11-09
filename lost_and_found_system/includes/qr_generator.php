@@ -19,7 +19,7 @@ function generateQRCode(int $itemId, string $reportNumber): ?string
 
     // QR data = lookup URL for this item
     $url     = rtrim(BASE_URL, '/') . '/api/qr_lookup.php?id=' . $itemId;
-    $outDir  = BASE_PATH . '/qr_codes/';
+    $outDir  = rtrim(QR_CODES_PATH, '/\\') . '/';
 
     if (!is_dir($outDir)) { mkdir($outDir, 0755, true); }
 
@@ -27,6 +27,7 @@ function generateQRCode(int $itemId, string $reportNumber): ?string
 
     try {
         QRcode::png($url, $filename, QR_ECLEVEL_M, 6, 2);
+        if (!is_file($filename) || filesize($filename) === 0) throw new RuntimeException('The QR image was not written.');
         return 'qr_codes/qr_' . $reportNumber . '.png';
     } catch (Throwable $e) {
         error_log('QR generation failed: ' . $e->getMessage());

@@ -54,7 +54,7 @@ include __DIR__ . '/../includes/header.php';
 include __DIR__ . '/../includes/sidebar_student.php';
 ?>
 
-<div class="main-content">
+<main class="main-content" id="main-content" tabindex="-1">
   <div class="topbar">
     <button class="btn-icon me-2" id="sidebarToggle"><i class="bi bi-list"></i></button>
     <div class="topbar-title"><span class="text-muted-sm">Student /</span> My Matches</div>
@@ -81,29 +81,27 @@ include __DIR__ . '/../includes/sidebar_student.php';
     <?php else: ?>
     <div class="row g-3">
       <!-- Match List -->
-      <div class="col-lg-4">
+      <div class="col-lg-4 match-list">
         <?php foreach ($matches as $m): ?>
         <?php
-        $scoreColor = $m['similarity_score'] >= 90 ? 'green' : ($m['similarity_score'] >= 75 ? 'blue' : 'orange');
         $isSelected = (int)$m['id'] === $selectedId;
         ?>
-        <a href="?id=<?= $m['id'] ?>" class="text-decoration-none">
-          <div class="card mb-2 <?= $isSelected ? 'border-primary' : '' ?>"
-               style="<?= $isSelected ? 'border-width:2px;' : '' ?>">
+        <a href="?id=<?= $m['id'] ?>" class="text-decoration-none" <?= $isSelected ? 'aria-current="true"' : '' ?>>
+          <div class="card mb-2 <?= $isSelected ? 'border-primary' : '' ?>">
             <div class="card-body py-2 px-3">
               <div class="d-flex align-items-center justify-content-between mb-1">
-                <span style="font-size:.7rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;">
-                  <?= $isSelected ? '▶ ' : '' ?>Match #<?= $m['id'] ?>
+                <span class="text-muted-sm numeric">
+                  Match #<?= $m['id'] ?>
                 </span>
                 <?= statusBadge($m['status']) ?>
               </div>
-              <div class="fw-700" style="font-size:.88rem;"><?= e($m['lost_name']) ?></div>
-              <div style="font-size:.78rem;color:var(--text-muted);">→ <?= e($m['found_name']) ?></div>
+              <div class="fw-600"><?= e($m['lost_name']) ?></div>
+              <div class="text-muted-sm"><i class="bi bi-arrow-right" aria-hidden="true"></i> <?= e($m['found_name']) ?></div>
               <div class="d-flex align-items-center gap-2 mt-2">
-                <div style="flex:1;height:4px;background:var(--border);border-radius:2px;overflow:hidden;">
-                  <div style="height:100%;background:var(--primary);width:<?= $m['similarity_score'] ?>%;"></div>
+                <div class="match-reason-bar" aria-hidden="true">
+                  <div class="match-reason-fill" style="width:<?= (float)min(100, max(0, $m['similarity_score'])) ?>%;"></div>
                 </div>
-                <strong style="font-size:.85rem;color:var(--primary);"><?= number_format($m['similarity_score'],1) ?>%</strong>
+                <strong class="text-primary small numeric"><?= number_format($m['similarity_score'],1) ?>%</strong>
               </div>
             </div>
           </div>
@@ -120,10 +118,10 @@ include __DIR__ . '/../includes/sidebar_student.php';
         ?>
         <div class="card mb-3">
           <div class="card-header">
-            <span class="card-title">
+            <h2 class="card-title">
               <i class="bi bi-link-45deg"></i> Match Analysis —
-              <strong style="color:var(--primary);"><?= number_format($selected['similarity_score'],1) ?>% similarity</strong>
-            </span>
+              <strong class="text-primary numeric"><?= number_format($selected['similarity_score'],1) ?>% similarity</strong>
+            </h2>
             <?= statusBadge($selected['status']) ?>
           </div>
           <div class="card-body">
@@ -137,11 +135,11 @@ include __DIR__ . '/../includes/sidebar_student.php';
                   <?php foreach ($reasonLabels as $key => $label): ?>
                   <?php $pts = $reasons[$key] ?? 0; $max = ['category'=>25,'item_name'=>20,'color'=>15,'brand'=>15,'description'=>15,'location'=>5,'date'=>5][$key] ?? 10; ?>
                   <div class="match-reason-row">
-                    <span style="min-width:100px;font-size:.78rem;"><?= $label ?></span>
+                    <span class="reason-label"><?= $label ?></span>
                     <div class="match-reason-bar">
                       <div class="match-reason-fill" style="width:<?= $max > 0 ? ($pts/$max*100) : 0 ?>%"></div>
                     </div>
-                    <span style="font-size:.75rem;font-weight:700;min-width:30px;text-align:right;"><?= $pts ?>/<?= $max ?></span>
+                    <span class="reason-value"><?= $pts ?>/<?= $max ?></span>
                   </div>
                   <?php endforeach; ?>
                 </div>
@@ -152,7 +150,7 @@ include __DIR__ . '/../includes/sidebar_student.php';
             <div class="row g-3">
               <div class="col-md-6">
                 <div class="compare-card">
-                  <div class="compare-card-header lost">🔍 Your Lost Item</div>
+                  <h3 class="compare-card-header lost"><i class="bi bi-search" aria-hidden="true"></i>Your lost item</h3>
                   <div class="compare-card-body">
                     <?php
                     $fields = [
@@ -172,14 +170,14 @@ include __DIR__ . '/../includes/sidebar_student.php';
                     </div>
                     <?php endforeach; ?>
                     <?php if ($selected['lost_desc']): ?>
-                    <div style="font-size:.78rem;margin-top:.5rem;color:var(--text-muted);"><?= snippet($selected['lost_desc'], 100) ?></div>
+                    <div class="text-muted-sm mt-2"><?= snippet($selected['lost_desc'], 100) ?></div>
                     <?php endif; ?>
                   </div>
                 </div>
               </div>
               <div class="col-md-6">
                 <div class="compare-card">
-                  <div class="compare-card-header found">📦 Found Item</div>
+                  <h3 class="compare-card-header found"><i class="bi bi-box-seam" aria-hidden="true"></i>Found item</h3>
                   <div class="compare-card-body">
                     <?php
                     $ffields = [
@@ -200,14 +198,14 @@ include __DIR__ . '/../includes/sidebar_student.php';
                     ?>
                     <div class="compare-row">
                       <span class="compare-label"><?= $label ?></span>
-                      <span class="compare-val <?= $isMatch?'match':'' ?>"><?= e((string)$val) ?><?= $isMatch ? ' ✓' : '' ?></span>
+                      <span class="compare-val <?= $isMatch?'match':'' ?>"><?= e((string)$val) ?><?php if ($isMatch): ?> <i class="bi bi-check" role="img" aria-label="Matching detail"></i><?php endif; ?></span>
                     </div>
                     <?php endforeach; ?>
                     <?php if ($selected['found_desc']): ?>
-                    <div style="font-size:.78rem;margin-top:.5rem;color:var(--text-muted);"><?= snippet($selected['found_desc'], 100) ?></div>
+                    <div class="text-muted-sm mt-2"><?= snippet($selected['found_desc'], 100) ?></div>
                     <?php endif; ?>
                     <?php if ($selected['storage_location']): ?>
-                    <div class="mt-2 p-2" style="background:var(--primary-ultra);border-radius:6px;font-size:.78rem;">
+                    <div class="mt-3 small">
                       <i class="bi bi-geo-alt me-1 text-primary"></i>
                       <strong>Storage:</strong> <?= e($selected['storage_location']) ?>
                     </div>
@@ -243,7 +241,7 @@ include __DIR__ . '/../includes/sidebar_student.php';
     </div>
     <?php endif; ?>
   </div>
-</div>
+</main>
 
 <?php if ($selected): ?>
 <script>

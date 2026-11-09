@@ -2,7 +2,7 @@
 /**
  * Student Dashboard
  */
-$pageTitle  = 'Student Dashboard';
+$pageTitle  = 'Overview';
 $activePage = 'dashboard';
 
 require_once __DIR__ . '/../config/config.php';
@@ -24,11 +24,11 @@ $myClaims  = db()->fetchOne('SELECT COUNT(*) AS c FROM claims WHERE claimant_id=
 // Recent activity
 $recentLost = db()->fetchAll(
     'SELECT li.*, c.name AS cat FROM lost_items li LEFT JOIN categories c ON li.category_id=c.id
-     WHERE li.user_id=? ORDER BY li.created_at DESC LIMIT 5', [$uid]);
+     WHERE li.user_id=? ORDER BY li.created_at DESC,li.id DESC LIMIT 5', [$uid]);
 $recentMatches = db()->fetchAll(
     'SELECT m.*, li.item_name AS lost_name, fi.item_name AS found_name, fi.report_number AS found_rn
      FROM matches m LEFT JOIN lost_items li ON m.lost_item_id=li.id LEFT JOIN found_items fi ON m.found_item_id=fi.id
-     WHERE li.user_id=? ORDER BY m.created_at DESC LIMIT 5', [$uid]);
+      WHERE li.user_id=? ORDER BY m.created_at DESC,m.id DESC LIMIT 5', [$uid]);
 $recentNotifs = getNotifications($uid, 5);
 
 $extraHead = '<script>const BASE_URL="' . BASE_URL . '";</script>';
@@ -36,138 +36,95 @@ include __DIR__ . '/../includes/header.php';
 include __DIR__ . '/../includes/sidebar_student.php';
 ?>
 
-<div class="main-content">
-  <div class="topbar topbar-clean">
-    <button class="btn-icon btn-icon-surface me-2" id="sidebarToggle"><i class="bi bi-list"></i></button>
-    <div class="topbar-title d-flex flex-column ms-1">
-      <span class="fw-800" style="font-size: 0.95rem; font-family: 'Outfit'; color: var(--text); line-height: 1.2;">Student Dashboard</span>
-      <span class="text-muted-sm fw-500">Stay organized, stay worry-free.</span>
+<main class="main-content" id="main-content" tabindex="-1">
+  <?php include __DIR__ . '/../includes/topbar.php'; ?>
+
+  <div class="content-area">
+    <div class="workspace-intro">
+      <div>
+        <h1>Welcome back, <?= e(explode(' ', trim($user['name']))[0]) ?>.</h1>
+        <p>Your reports, updates, and a little help finding what's missing.</p>
+      </div>
+      <time class="workspace-date" datetime="<?= date('Y-m-d') ?>"><i class="bi bi-calendar3" aria-hidden="true"></i> <?= date('D, M j, Y') ?></time>
     </div>
-    <div class="topbar-actions">
-      <div style="position:relative;">
-        <a href="<?= BASE_URL ?>/student/notifications.php" class="btn-icon btn-icon-surface" id="notifBtnTop">
-          <i class="bi bi-bell"></i>
-        </a>
-        <?php if ($notifCount > 0): ?>
-        <span id="notifBadge" class="position-absolute top-0 end-0 translate-middle badge rounded-pill bg-danger"
-              style="font-size:.6rem;padding:.25em .4em;"><?= $notifCount ?></span>
+
+    <section class="dashboard-banner" aria-labelledby="next-step-title">
+      <div>
+        <span class="eyebrow">LET'S GET IT BACK TO YOU</span>
+        <?php if ($myMatches > 0): ?>
+        <h2 id="next-step-title"><?= (int)$myMatches ?> possible match<?= $myMatches > 1 ? 'es' : '' ?>. One step closer.</h2>
+        <p>A found item may match your report. Compare the details before filing an ownership claim.</p>
         <?php else: ?>
-        <span id="notifBadge" class="position-absolute top-0 end-0 translate-middle badge rounded-pill bg-danger"
-              style="font-size:.6rem;padding:.25em .4em;display:none;"></span>
+        <h2 id="next-step-title">Missing something? You're in the right place.</h2>
+        <p>Tell us what went missing and where. We'll let you know when a found item may be a match.</p>
         <?php endif; ?>
+        <div class="action-row">
+          <?php if ($myMatches > 0): ?>
+          <a href="<?= BASE_URL ?>/student/matches.php" class="btn btn-primary">Review matches <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+          <?php endif; ?>
+          <a href="<?= BASE_URL ?>/student/lost_items.php?action=new" class="btn <?= $myMatches > 0 ? 'btn-outline-secondary' : 'btn-primary' ?>"><i class="bi bi-plus-lg" aria-hidden="true"></i> Report lost item</a>
+          <a href="<?= BASE_URL ?>/student/browse.php" class="btn btn-outline-secondary">Browse found items</a>
+        </div>
       </div>
-      
-      
-    </div>
-  </div>
+      <ol class="recovery-steps" aria-label="The recovery process">
+        <li><i class="bi bi-pencil-square" aria-hidden="true"></i><span><strong>Report it</strong><small>A few details make a difference</small></span></li>
+        <li><i class="bi bi-intersect" aria-hidden="true"></i><span><strong>Find a match</strong><small>Check your possible matches</small></span></li>
+        <li><i class="bi bi-bag-check" aria-hidden="true"></i><span><strong>Bring it home</strong><small>Claim and collect your item</small></span></li>
+      </ol>
+    </section>
 
-  <div class="content-area dashboard-content-area animate-fade-in-up">
-    <!-- Welcome Banner Card -->
-    <div class="welcome-banner p-4 mb-4 position-relative overflow-hidden">
-      <div class="welcome-banner-content">
-        <h2 class="fw-800 mb-1 welcome-banner-title text-white">Welcome, <?= e(explode(' ', $user['name'])[0]) ?>! 👋</h2>
-        <p class="mb-0 opacity-80 welcome-banner-subtitle"><?= date('l, F j, Y') ?></p>
-      </div>
-      <div class="welcome-banner-img-wrapper">
-        <img src="<?= ASSETS_URL ?>/uploads/dashboard_illustration.png" alt="Illustration" class="welcome-banner-img">
-      </div>
-    </div>
-
-    <!-- Quick Report Actions -->
-    <div class="row g-3 mb-4">
-      <div class="col-6">
-        <a href="<?= BASE_URL ?>/student/lost_items.php?action=new" class="d-flex align-items-center gap-3 p-3 text-decoration-none quick-action-card">
-          <div class="icon-circle-mint">
-            <i class="bi bi-plus-lg text-primary" style="font-size: 1.1rem; -webkit-text-stroke: 0.5px;"></i>
-          </div>
-          <div>
-            <div class="fw-700 text-primary" style="font-size: 0.95rem; font-family: 'Outfit';">Report Lost</div>
-            <div class="text-muted d-none d-sm-block" style="font-size: 0.72rem;">Report an item you lost</div>
-          </div>
-        </a>
-      </div>
-      <div class="col-6">
-        <a href="<?= BASE_URL ?>/student/found_items.php?action=new" class="d-flex align-items-center gap-3 p-3 text-decoration-none quick-action-card-primary">
-          <div class="icon-circle-white">
-            <i class="bi bi-plus-lg text-primary" style="font-size: 1.1rem; -webkit-text-stroke: 0.5px;"></i>
-          </div>
-          <div>
-            <div class="fw-700 text-white" style="font-size: 0.95rem; font-family: 'Outfit';">Report Found</div>
-            <div style="font-size: 0.72rem; color: rgba(255,255,255,0.85);" class="d-none d-sm-block">Report an item you found</div>
-          </div>
-        </a>
-      </div>
-    </div>
+    <div class="dashboard-section-label"><h2>Your activity at a glance</h2><a href="<?= BASE_URL ?>/student/found_items.php" class="text-link">Found something? Report it <i class="bi bi-arrow-up-right" aria-hidden="true"></i></a></div>
 
     <!-- KPI Cards -->
-    <div class="row g-3 mb-4">
+    <div class="row stats-grid mb-4">
       <?php
       $kpis = [
-        ['bi-search','My Lost Reports',$myLost,'orange',BASE_URL.'/student/my_reports.php?type=lost', "Items you've reported lost"],
-        ['bi-box-seam','My Found Reports',$myFound,'blue',BASE_URL.'/student/my_reports.php?type=found', "Items you've reported found"],
-        ['bi-link-45deg','Pending Matches',$myMatches,'green',BASE_URL.'/student/matches.php', "Possible matches for you"],
-        ['bi-file-earmark-check','My Claims',$myClaims,'purple',BASE_URL.'/student/claims.php', "Items you've claimed"],
+        ['bi-search','Lost reports',$myLost,BASE_URL.'/student/my_reports.php?type=lost'],
+        ['bi-box-seam','Found reports',$myFound,BASE_URL.'/student/my_reports.php?type=found'],
+        ['bi-link-45deg','Pending matches',$myMatches,BASE_URL.'/student/matches.php'],
+        ['bi-file-earmark-check','My claims',$myClaims,BASE_URL.'/student/claims.php'],
       ];
-      foreach ($kpis as [$ic,$lb,$vl,$cl,$hr,$sl]):
+      foreach ($kpis as [$ic,$lb,$vl,$hr]):
       ?>
       <div class="col-6 col-md-3 d-flex">
-        <a href="<?= $hr ?>" class="stat-card <?= $cl ?> text-decoration-none w-100">
-          <div class="stat-icon <?= $cl ?>" style="width: 44px; height: 44px; font-size: 1.25rem;"><i class="bi <?= $ic ?>"></i></div>
+        <a href="<?= $hr ?>" class="stat-card text-decoration-none w-100">
+          <i class="bi bi-arrow-up-right stat-link-arrow" aria-hidden="true"></i>
+          <div class="stat-icon"><i class="bi <?= $ic ?>" aria-hidden="true"></i></div>
           <div class="stat-info">
-            <div class="stat-value" style="font-size: 1.5rem; font-family: 'Outfit'; line-height: 1;"><?= number_format((int)$vl) ?></div>
-            <div class="stat-label" style="font-size: 0.8rem; font-weight: 700; color: var(--text); line-height: 1.1; margin-top: 0.15rem;"><?= $lb ?></div>
-            <div class="text-muted-sm d-none d-sm-block" style="margin-top: 0.1rem; line-height: 1.1;"><?= $sl ?></div>
+            <div class="stat-value"><?= number_format((int)$vl) ?></div>
+            <div class="stat-label"><?= $lb ?></div>
           </div>
         </a>
       </div>
       <?php endforeach; ?>
     </div>
 
-    <!-- Alerts: Pending Matches -->
-    <?php if ($myMatches > 0): ?>
-    <div class="alert alert-primary d-flex align-items-center gap-3 mb-4 animate-slide-down" style="border-radius:var(--radius-md);">
-      <i class="bi bi-link-45deg" style="font-size:1.5rem;flex-shrink:0;"></i>
-      <div>
-        <strong><?= $myMatches ?> possible match<?= $myMatches>1?'es':'' ?> found!</strong>
-        <div style="font-size:.85rem;">Check your match results — your lost item may have been found.</div>
-      </div>
-      <a href="<?= BASE_URL ?>/student/matches.php" class="btn btn-primary btn-sm ms-auto">Review</a>
-    </div>
-    <?php endif; ?>
-
-    <div class="row g-3">
+    <div class="row g-4">
       <!-- My Recent Reports -->
-      <div class="col-lg-7">
-        <div class="card stat-card-surface p-0 overflow-hidden">
-          <div class="card-header card-header-clean d-flex justify-content-between align-items-center p-3">
-            <span class="card-title fw-800 mb-0" style="font-size: 1.05rem; font-family: 'Outfit'; color: var(--text);"><i class="bi bi-journal-text me-2 text-primary"></i>My Recent Reports</span>
-            <a href="<?= BASE_URL ?>/student/my_reports.php" class="btn btn-outline-primary btn-sm" style="border-radius: 20px; font-size: 0.78rem; padding: 0.25rem 0.85rem; border-color: var(--primary); color: var(--primary);">View All</a>
+      <div class="col-lg-8">
+        <section class="card h-100" aria-labelledby="recent-reports-title">
+          <div class="card-header">
+            <h2 class="card-title" id="recent-reports-title">Recent lost reports</h2>
+            <a href="<?= BASE_URL ?>/student/my_reports.php" class="text-link small">All reports</a>
           </div>
-          <div class="card-body p-4">
+          <div class="card-body p-0">
             <?php if (empty($recentLost)): ?>
-            <div class="empty-state text-center py-4 d-flex flex-column align-items-center justify-content-center">
-              <div class="mb-3 position-relative d-flex align-items-center justify-content-center" style="width: 76px; height: 76px; border-radius: 50%; background: rgba(167, 243, 208, 0.4);">
-                <i class="bi bi-clipboard2-check text-primary" style="font-size: 2.2rem;"></i>
-                <span style="position: absolute; bottom: 8px; right: -5px; font-size: 1.1rem;">🍃</span>
-                <span style="position: absolute; top: 12px; left: -8px; font-size: 0.9rem;">🍃</span>
-              </div>
-              <h5 class="fw-800" style="font-size: 1.1rem; color: var(--text); font-family: 'Outfit'; margin-bottom: 0.35rem;">No reports yet</h5>
-              <p class="text-muted mb-4" style="font-size: 0.85rem; max-width: 250px; margin: 0 auto 1rem;">Start by reporting a lost item.</p>
-              <a href="<?= BASE_URL ?>/student/lost_items.php?action=new" class="btn btn-primary fw-700" style="background: var(--primary); border: none; border-radius: 30px; padding: 0.5rem 1.35rem; font-size: 0.82rem; display: inline-flex; align-items: center; justify-content: center; gap: 0.25rem; color: #ffffff;">
-                <span style="font-size: 1.1rem; font-weight: 800; line-height: 1; display: inline-flex; align-items: center; margin-right: 0.15rem;">+</span> Report Lost Item
-              </a>
+            <div class="empty-state">
+              <i class="bi bi-journal-text" aria-hidden="true"></i>
+              <h3>No lost reports yet</h3>
+              <p>Your submitted reports and their status will appear here.</p>
+              <a href="<?= BASE_URL ?>/student/lost_items.php?action=new" class="text-link">Report a lost item</a>
             </div>
             <?php else: ?>
             <div class="table-responsive">
               <table class="table table-hover mb-0 table-mobile-cards">
-                <thead><tr><th>Report #</th><th>Item</th><th>Category</th><th>Date Lost</th><th>Status</th></tr></thead>
+                <thead><tr><th scope="col">Item / report</th><th scope="col">Category</th><th scope="col">Date lost</th><th scope="col">Status</th></tr></thead>
                 <tbody>
                   <?php foreach ($recentLost as $item): ?>
                   <tr>
-                    <td data-label="Report #"><code style="font-size:.72rem;"><?= e($item['report_number']) ?></code></td>
-                    <td data-label="Item" class="fw-600" style="font-size:.85rem;"><?= e($item['item_name']) ?></td>
-                    <td data-label="Category" style="font-size:.78rem;color:var(--text-muted);"><?= e($item['cat']) ?></td>
-                    <td data-label="Date Lost" style="font-size:.78rem;"><?= formatDate($item['date_lost']) ?></td>
+                    <td data-label="Item"><div class="report-cell"><span class="report-cell-icon"><i class="bi bi-box-seam" aria-hidden="true"></i></span><span><strong><?= e($item['item_name']) ?></strong><code><?= e($item['report_number']) ?></code></span></div></td>
+                    <td data-label="Category" class="text-muted"><?= e($item['cat']) ?></td>
+                    <td data-label="Date Lost" class="text-nowrap"><?= formatDate($item['date_lost']) ?></td>
                     <td data-label="Status"><?= statusBadge($item['status']) ?></td>
                   </tr>
                   <?php endforeach; ?>
@@ -176,59 +133,54 @@ include __DIR__ . '/../includes/sidebar_student.php';
             </div>
             <?php endif; ?>
           </div>
-        </div>
+        </section>
       </div>
 
       <!-- Notifications -->
-      <div class="col-lg-5">
-        <div class="card stat-card-surface p-0 overflow-hidden">
-          <div class="card-header card-header-clean d-flex justify-content-between align-items-center p-3">
-            <span class="card-title fw-800 mb-0" style="font-size: 1.05rem; font-family: 'Outfit'; color: var(--text);">
-              <i class="bi bi-bell-fill me-2 text-primary"></i>Notifications
-              <?php if ($notifCount > 0): ?><span class="nav-badge" style="position:static;display:inline-block;margin-left: 0.35rem;"><?= $notifCount ?></span><?php endif; ?>
-            </span>
-            <a href="<?= BASE_URL ?>/student/notifications.php" class="btn btn-outline-primary btn-sm" style="border-radius: 20px; font-size: 0.78rem; padding: 0.25rem 0.85rem; border-color: var(--primary); color: var(--primary);">View All</a>
+      <div class="col-lg-4">
+        <section class="card h-100" aria-labelledby="notifications-title">
+          <div class="card-header">
+            <h2 class="card-title" id="notifications-title">Notifications</h2>
+            <a href="<?= BASE_URL ?>/student/notifications.php" class="text-link small">View all</a>
           </div>
           <div class="card-body p-0">
             <?php if (empty($recentNotifs)): ?>
-            <div class="text-center py-5 d-flex flex-column align-items-center">
-              <div class="mb-3 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px; border-radius: 50%; background: var(--surface-2);">
-                <i class="bi bi-bell text-muted" style="font-size: 1.5rem;"></i>
-              </div>
-              <h5 class="fw-800" style="font-size: 0.95rem; color: var(--text-muted); font-family: 'Outfit';">No notifications</h5>
+            <div class="empty-state">
+              <i class="bi bi-bell" aria-hidden="true"></i>
+              <h3>No notifications</h3>
             </div>
             <?php else: ?>
             <div class="notif-list">
               <?php foreach ($recentNotifs as $n): ?>
-              <div class="notif-item <?= $n['is_read']?'':'unread' ?> d-flex align-items-start gap-3 p-3" style="border-bottom: 1px solid var(--border); transition: background 0.2s;">
-                <div class="notif-icon <?= e($n['type']) ?>" style="width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; background: <?= $n['type']==='match'?'#e0f2fe':($n['type']==='success'?'#d1fae5':'#fef3c7') ?>; color: <?= $n['type']==='match'?'#0369a1':($n['type']==='success'?'#047857':'#b45309') ?>;">
-                  <i class="bi <?= $n['type']==='match'?'bi-link-45deg':($n['type']==='success'?'bi-check-circle':'bi-bell') ?>" style="font-size: 1.1rem;"></i>
+              <a href="<?= e(notificationUrl($n, 'student')) ?>" class="notif-item <?= $n['is_read']?'':'unread' ?>">
+                <div class="notif-icon <?= e($n['type']) ?>">
+                  <i class="bi <?= $n['type']==='match'?'bi-link-45deg':($n['type']==='success'?'bi-check-circle':'bi-bell') ?>" aria-hidden="true"></i>
                 </div>
                 <div class="notif-body flex-grow-1">
-                  <div class="notif-title fw-700" style="font-size: 0.88rem; color: var(--text);"><?= e($n['title']) ?></div>
-                  <div class="notif-msg text-muted" style="font-size: 0.78rem; line-height: 1.4; margin-top: 0.1rem;"><?= snippet($n['message'], 80) ?></div>
-                  <div class="notif-time text-muted d-flex align-items-center gap-1" style="font-size: 0.72rem; margin-top: 0.35rem;">
+                  <div class="notif-title"><?= e($n['title']) ?></div>
+                  <div class="notif-msg"><?= snippet($n['message'], 80) ?></div>
+                  <div class="notif-time">
                     <i class="bi bi-clock"></i> <?= timeAgo($n['created_at']) ?>
                   </div>
                 </div>
                 <?php if (!$n['is_read']): ?>
-                <div class="unread-dot" style="width: 8px; height: 8px; border-radius: 50%; background: #10B981; margin-top: 0.5rem; flex-shrink: 0;"></div>
+                <span class="unread-dot" role="img" aria-label="Unread"></span>
                 <?php endif; ?>
-              </div>
+              </a>
               <?php endforeach; ?>
             </div>
             <?php endif; ?>
           </div>
-        </div>
+        </section>
       </div>
     </div>
 
     <!-- Recent Matches -->
     <?php if (!empty($recentMatches)): ?>
-    <div class="card stat-card-surface mt-4 p-0 overflow-hidden">
-      <div class="card-header card-header-clean d-flex justify-content-between align-items-center p-3">
-        <span class="card-title fw-800 mb-0" style="font-size: 1.05rem; font-family: 'Outfit'; color: var(--text);"><i class="bi bi-link-45deg me-2 text-primary"></i>My Matches</span>
-        <a href="<?= BASE_URL ?>/student/matches.php" class="btn btn-outline-primary btn-sm" style="border-radius: 20px; font-size: 0.78rem; padding: 0.25rem 0.85rem; border-color: var(--primary); color: var(--primary);">View All</a>
+    <section class="card mt-4" aria-labelledby="matches-title">
+      <div class="card-header">
+        <h2 class="card-title" id="matches-title">Recent matches</h2>
+        <a href="<?= BASE_URL ?>/student/matches.php" class="text-link small">All matches</a>
       </div>
       <div class="card-body p-0">
         <div class="table-responsive">
@@ -237,16 +189,16 @@ include __DIR__ . '/../includes/sidebar_student.php';
             <tbody>
               <?php foreach ($recentMatches as $m): ?>
               <tr>
-                <td data-label="Lost Item" class="fw-600" style="font-size:.85rem;"><?= e($m['lost_name']) ?></td>
-                <td data-label="Found Item" style="font-size:.85rem;"><?= e($m['found_name']) ?> <code style="font-size:.7rem;"><?= e($m['found_rn']) ?></code></td>
+                <td data-label="Lost Item" class="fw-600"><?= e($m['lost_name']) ?></td>
+                <td data-label="Found Item"><?= e($m['found_name']) ?> <code><?= e($m['found_rn']) ?></code></td>
                 <td data-label="Score">
-                  <strong style="color:var(--primary)"><?= number_format($m['similarity_score'],1) ?>%</strong>
+                  <strong class="text-primary"><?= number_format($m['similarity_score'],1) ?>%</strong>
                 </td>
                 <td data-label="Status"><?= statusBadge($m['status']) ?></td>
-                <td data-label="Date" style="font-size:.78rem;"><?= timeAgo($m['created_at']) ?></td>
+                <td data-label="Date"><?= timeAgo($m['created_at']) ?></td>
                 <td data-label="">
-                  <a href="<?= BASE_URL ?>/student/matches.php?id=<?= $m['id'] ?>" class="btn btn-sm btn-outline-primary py-0 px-2">
-                    <i class="bi bi-eye"></i>
+                  <a href="<?= BASE_URL ?>/student/matches.php?id=<?= $m['id'] ?>" class="btn btn-sm btn-outline-secondary" aria-label="View match for <?= e($m['lost_name']) ?>">
+                    <i class="bi bi-arrow-right" aria-hidden="true"></i>
                   </a>
                 </td>
               </tr>
@@ -255,9 +207,9 @@ include __DIR__ . '/../includes/sidebar_student.php';
           </table>
         </div>
       </div>
-    </div>
+    </section>
     <?php endif; ?>
   </div>
-</div>
+</main>
 
 <?php include __DIR__ . '/../includes/footer.php'; ?>

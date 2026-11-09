@@ -38,7 +38,7 @@ Five tables are added:
 | `claim_assessments` | Claim ID, immutable submission/reference/feature/evidence snapshots, feature version, fingerprint, classification, prediction state/reason, model version, prediction date, decision path. |
 | `claim_verifications` | Independent verification status/label/evidence, verifier/date, private security notes, administrator's final decision/actor/date. |
 | `decision_tree_models` | Versioned trained tree JSON, held-out metrics, dataset hash, train/test membership and persistent partitions, sample counts, trainer/date, active flag. |
-| `item_photo_visibility` | Administrator-reviewed public/private status of existing item photos. A missing row means private. |
+| `item_photo_visibility` | Legacy administrator-reviewed public/private status for item photos. New report photos are public on upload. |
 
 The existing `claims.status`, `reviewed_by`, and `review_notes` continue to support existing screens. They are updated transactionally with the new administrator authorization record. Existing release history remains intact. An old security-approved but unreleased claim must be confirmed by an administrator before a new release.
 
@@ -50,7 +50,7 @@ Connection settings retain their current defaults. Optional `LAF_DB_HOST`, `LAF_
 
 1. **Record the found item.** Security staff log an item as before. After saving, open **Private Item Verification** (also available via **Verify** in Found Items or **Private Reference** in Admin Reports).
 2. **Inspect it independently.** Record concise identifying phrases, one per line (maximum 10), and expected answers to the two generic questions. Do this before claims arrive. Leave unknown information blank. Never derive a correct answer from a claimant's response.
-3. **Prepare public information.** Keep item names general. The original detailed description is private; write a separate public-safe summary. Under Admin Reports → **Photos**, publish only photos inspected for private marks, serial numbers, labels, contents, or personal details. Existing photos are retained and remain available to authorized staff/reporters through authenticated URLs.
+3. **Prepare public information.** Keep item names general. The original detailed description is private; write a separate public-safe summary. Report photos appear on the public landing page after upload, so do not include private marks, serial numbers, labels, contents, or personal details.
 4. **Submit a claim.** A student provides their own description, category, loss location/date, identifying characteristics, verification answers, and optional proof photo. Optional unknowns may be left blank. Linked matches/lost reports are checked against the actual logged-in claimant. The form never pre-fills correct ownership answers.
 5. **Generate and save the assessment.** The server retrieves the found item/reference, extracts six features, and saves a frozen snapshot. If a compatible trained tree is active, its recommendation, version, date, leaf support and learned path are stored. Otherwise the record is explicitly **Not classified** with an unavailable/error reason. That state is not a fabricated “Needs Verification” prediction.
 6. **Review.** Admin Dashboard → **Decision Tree — Ownership Claims**, or Admin → **Claims → Review**, displays claim ID, item, claimant, classification, comparisons, status, and submission date. The review page includes the private side-by-side evidence and protected proof photo.
@@ -179,7 +179,7 @@ The intentional corrupt-model test logs an evaluation failure, then verifies tha
 | `student/claims.php` | Structured ownership evidence collection and secure submission. |
 | `security/item_verification.php`, `security/found_items.php` | Staff-inspected private reference collection. |
 | `security/claims.php`, `security/release.php` | Staff evidence review and administrator-authorized handover. |
-| `admin/photo_review.php`, `api/item_photo.php`, upload `.htaccess` files | Private ownership images and explicit public-safe photo publication. |
+| `admin/photo_review.php`, `api/item_photo.php`, upload `.htaccess` files | Public report images and private ownership proof image protection. |
 | `index.php`, `student/matches.php`, `student/found_items.php`, `admin/reports.php`, `api/qr_lookup.php`, `includes/functions.php` | Safe public descriptions, private photo URLs, staff-only detailed QR lookup, reference/photo links and form guidance. |
 | `includes/auth.php`, `api/upload_photo.php`, `config/config.php`, `.htaccess` | Current-role checks, nonempty CSRF checks, protected upload endpoint, optional DB environment configuration, direct-access protection. |
 | `database/migrations/001_decision_tree.sql`, `scripts/*.php` | Additive schema setup and trusted CLI training. |

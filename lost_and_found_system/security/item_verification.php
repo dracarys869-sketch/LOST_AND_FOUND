@@ -33,7 +33,7 @@ $photos = itemPhotos('found', $itemId);
 include __DIR__ . '/../includes/header.php';
 include __DIR__ . '/../includes/sidebar_' . ($user['role'] === 'admin' ? 'admin' : 'security') . '.php';
 ?>
-<div class="main-content">
+<main class="main-content" id="main-content" tabindex="-1">
   <div class="topbar"><button class="btn-icon me-2" id="sidebarToggle" aria-label="Toggle sidebar"><i class="bi bi-list"></i></button><div class="topbar-title">Private Item Verification</div></div>
   <div class="content-area">
     <div class="page-header"><div><h1 class="page-title"><?= e($item['item_name']) ?></h1><p class="page-subtitle"><?= e($item['report_number']) ?> · <?= e($item['category']) ?> · <?= e($item['location']) ?></p></div><a href="<?= BASE_URL ?>/security/found_items.php" class="btn btn-sm btn-outline-secondary">Found Items</a></div>
@@ -45,7 +45,7 @@ include __DIR__ . '/../includes/sidebar_' . ($user['role'] === 'admin' ? 'admin'
     <div class="row g-3">
       <div class="col-lg-8"><div class="card">
         <div class="card-header"><span class="card-title"><i class="bi bi-shield-lock"></i> Verification Reference</span><small class="text-muted">Revision <?= (int)($reference['reference_version'] ?? 0) ?></small></div>
-        <form method="POST">
+        <form method="POST" data-pending-label="Saving private item reference…">
           <?= csrfField() ?>
           <div class="card-body">
             <label class="form-label" for="privateMarks">Private identifying phrases — one per line</label>
@@ -68,15 +68,15 @@ include __DIR__ . '/../includes/sidebar_' . ($user['role'] === 'admin' ? 'admin'
       </div></div>
       <div class="col-lg-4"><div class="card mb-3">
         <div class="card-header"><span class="card-title">Original Private Report</span></div>
-        <div class="card-body"><p style="white-space:pre-wrap;"><?= e($item['description'] ?? 'No description.') ?></p><p class="small text-muted">Found <?= e($item['date_found']) ?><br>Storage: <?= e($item['storage_location']) ?></p></div>
+        <div class="card-body"><p class="preserve-lines"><?= e($item['description'] ?? 'No description.') ?></p><p class="small text-muted">Found <?= e($item['date_found']) ?><br>Storage: <?= e($item['storage_location']) ?></p></div>
       </div>
       <div class="card"><div class="card-header"><span class="card-title">Item Photos</span></div><div class="card-body">
         <?php foreach ($photos as $photo): ?><a href="<?= e($photo['url']) ?>" target="_blank" rel="noopener"><img src="<?= e($photo['url']) ?>" class="img-fluid rounded mb-2" alt="Private found item photo"></a><?php endforeach; ?>
         <?php if (!$photos): ?><p class="text-muted">No photos uploaded.</p><?php endif; ?>
-        <?php if ($user['role'] === 'admin'): ?><a href="<?= BASE_URL ?>/admin/photo_review.php?type=found&item_id=<?= $itemId ?>" class="btn btn-sm btn-outline-primary">Review Photo Privacy</a><?php endif; ?>
+        <?php if ($user['role'] === 'admin'): ?><a href="<?= BASE_URL ?>/admin/photo_review.php?type=found&item_id=<?= $itemId ?>" class="btn btn-sm btn-outline-primary">View Report Photos</a><?php endif; ?>
       </div></div></div>
     </div>
     <?php endif; ?>
   </div>
-</div>
+</main>
 <?php include __DIR__ . '/../includes/footer.php'; ?>

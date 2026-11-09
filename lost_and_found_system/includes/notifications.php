@@ -50,3 +50,27 @@ function unreadCount(int $userId): int
     );
     return (int)($row['cnt'] ?? 0);
 }
+
+/** Resolve a notification to an existing role-appropriate screen. */
+function notificationUrl(array $notification, string $role): string
+{
+    $id = (int)($notification['related_id'] ?? 0);
+    $type = $notification['related_type'] ?? $notification['type'] ?? '';
+    if ($type === 'claim') {
+        return match ($role) {
+            'admin' => BASE_URL . '/admin/' . ($id ? 'claim_review.php?id=' . $id : 'claims.php'),
+            'security' => BASE_URL . '/security/claims.php' . ($id ? '?focus=' . $id : ''),
+            default => BASE_URL . '/student/claims.php',
+        };
+    }
+    if ($type === 'match') {
+        return $role === 'student' ? BASE_URL . '/student/matches.php' . ($id ? '?id=' . $id : '')
+            : BASE_URL . ($role === 'admin' ? '/admin/reports.php?type=match' : '/security/claims.php');
+    }
+    if ($type === 'release') return BASE_URL . ($role === 'student' ? '/student/claims.php' : '/security/release.php');
+    return match ($role) {
+        'admin' => BASE_URL . '/admin/reports.php',
+        'security' => BASE_URL . '/security/found_items.php',
+        default => BASE_URL . '/student/my_reports.php' . ($type === 'found_item' ? '?type=found' : ''),
+    };
+}

@@ -1,0 +1,9 @@
+/* Registration shares the auth layout, with a little more room for its fields. */
+.register-page .auth-shell { max-width: 72rem; padding-block: var(--space-8); }
+.register-page .auth-card { max-width: 32rem; padding: var(--space-8); }
+.register-page .auth-heading { margin-bottom: var(--space-6); }
+.register-page .auth-info { align-self: center; }
+.register-page .auth-form-title { font-size: var(--text-2xl); }
+@media (max-width: 575.98px) {
+  .register-page .auth-card { padding: var(--space-6) var(--space-4); }
+}

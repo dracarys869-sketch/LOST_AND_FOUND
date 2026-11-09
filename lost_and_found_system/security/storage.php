@@ -31,7 +31,7 @@ include __DIR__ . '/../includes/header.php';
 include __DIR__ . '/../includes/sidebar_security.php';
 ?>
 
-<div class="main-content">
+<main class="main-content" id="main-content" tabindex="-1">
   <div class="topbar">
     <button class="btn-icon me-2" id="sidebarToggle"><i class="bi bi-list"></i></button>
     <div class="topbar-title"><span class="text-muted-sm">Security /</span> Storage</div>
@@ -47,14 +47,14 @@ include __DIR__ . '/../includes/sidebar_security.php';
 
     <div class="filters-row mb-3">
       <form method="GET" class="d-flex gap-2 w-100">
-        <div class="search-bar flex-grow-1"><i class="bi bi-search"></i><input type="text" name="search" class="form-control" placeholder="Search items…" value="<?= e($search) ?>"></div>
-        <button type="submit" class="btn btn-outline-primary btn-sm">Search</button>
+        <div class="search-bar flex-grow-1"><i class="bi bi-search"></i><input type="search" name="search" class="form-control" aria-label="Search items in storage" placeholder="Search items…" value="<?= e($search) ?>"></div>
+        <button type="submit" class="btn btn-primary">Search storage</button>
         <a href="?" class="btn btn-outline-secondary btn-sm">Reset</a>
       </form>
     </div>
 
     <?php if (empty($grouped)): ?>
-    <div class="empty-state"><i class="bi bi-archive"></i><h5>No items in storage</h5><p>All items have been released.</p></div>
+    <div class="empty-state"><i class="bi bi-archive"></i><h5><?= $search ? 'No matching items' : 'No items in storage' ?></h5><p><?= $search ? 'Try another item name or reset the search.' : 'Items currently in custody will appear here.' ?></p></div>
     <?php else: ?>
     <?php foreach ($grouped as $location => $locItems): ?>
     <div class="card mb-3">
@@ -67,22 +67,22 @@ include __DIR__ . '/../includes/sidebar_security.php';
       </div>
       <div class="card-body p-0">
         <div class="table-responsive">
-          <table class="table table-hover mb-0" style="font-size:.83rem;">
+          <table class="table table-hover mb-0">
             <thead><tr><th>Report #</th><th>Item</th><th>Category</th><th>Date Found</th><th>Status</th><th>QR</th></tr></thead>
             <tbody>
               <?php foreach ($locItems as $fi): ?>
               <tr>
-                <td><code style="font-size:.72rem;"><?= e($fi['report_number']) ?></code></td>
+                <td><code><?= e($fi['report_number']) ?></code></td>
                 <td>
                   <div class="fw-600"><?= e($fi['item_name']) ?></div>
-                  <?php if ($fi['brand'] || $fi['color']): ?><div style="font-size:.72rem;color:var(--text-muted);"><?= e(implode(' · ',array_filter([$fi['brand']??'',$fi['color']??'']))) ?></div><?php endif; ?>
+                  <?php if ($fi['brand'] || $fi['color']): ?><div class="text-muted-sm"><?= e(implode(' · ',array_filter([$fi['brand']??'',$fi['color']??'']))) ?></div><?php endif; ?>
                 </td>
                 <td><?= e($fi['cat']) ?></td>
-                <td style="white-space:nowrap;"><?= formatDate($fi['date_found']) ?></td>
+                <td class="text-nowrap"><?= formatDate($fi['date_found']) ?></td>
                 <td><?= statusBadge($fi['status']) ?></td>
                 <td>
                   <?php if ($fi['qr_code_path']): ?>
-                  <a href="<?= BASE_URL.'/qr_codes/'.basename($fi['qr_code_path']) ?>" target="_blank" class="btn btn-sm btn-outline-primary py-0 px-2"><i class="bi bi-qr-code"></i></a>
+                  <a href="<?= BASE_URL.'/qr_codes/'.basename($fi['qr_code_path']) ?>" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary py-0 px-2" aria-label="View QR code for <?= e($fi['item_name']) ?>"><i class="bi bi-qr-code"></i></a>
                   <?php else: ?><span class="text-muted">—</span><?php endif; ?>
                 </td>
               </tr>
@@ -95,6 +95,6 @@ include __DIR__ . '/../includes/sidebar_security.php';
     <?php endforeach; ?>
     <?php endif; ?>
   </div>
-</div>
+</main>
 
 <?php include __DIR__ . '/../includes/footer.php'; ?>

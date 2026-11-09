@@ -59,7 +59,7 @@ include __DIR__ . '/../includes/header.php';
 include __DIR__ . '/../includes/sidebar_admin.php';
 ?>
 
-<div class="main-content">
+<main class="main-content" id="main-content" tabindex="-1">
   <div class="topbar">
     <button class="btn-icon me-2" id="sidebarToggle"><i class="bi bi-list"></i></button>
     <div class="topbar-title"><span class="text-muted-sm">Admin /</span> Locations</div>
@@ -83,15 +83,15 @@ include __DIR__ . '/../includes/sidebar_admin.php';
             <tbody>
               <?php foreach ($locations as $loc): ?>
               <tr>
-                <td style="font-size:.75rem;"><?= $loc['id'] ?></td>
+                <td><?= $loc['id'] ?></td>
                 <td>
                   <div class="d-flex align-items-center gap-2">
-                    <div class="stat-icon green" style="width:30px;height:30px;font-size:.8rem;"><i class="bi bi-geo-alt"></i></div>
-                    <span class="fw-600" style="font-size:.85rem;"><?= e($loc['name']) ?></span>
+                    <div class="stat-icon icon-sm"><i class="bi bi-geo-alt"></i></div>
+                    <span class="fw-600"><?= e($loc['name']) ?></span>
                   </div>
                 </td>
-                <td style="font-size:.83rem;"><?= e($loc['building'] ?? '—') ?></td>
-                <td style="font-size:.83rem;"><?= e($loc['floor']    ?? '—') ?></td>
+                <td><?= e($loc['building'] ?? '—') ?></td>
+                <td><?= e($loc['floor']    ?? '—') ?></td>
                 <td>
                   <span class="badge bg-secondary"><?= number_format((int)$loc['item_count']) ?></span>
                 </td>
@@ -102,7 +102,7 @@ include __DIR__ . '/../includes/sidebar_admin.php';
                             data-bs-toggle="modal" data-bs-target="#editLocModal"
                             data-id="<?= $loc['id'] ?>" data-name="<?= e($loc['name']) ?>"
                             data-building="<?= e($loc['building']??'') ?>" data-floor="<?= e($loc['floor']??'') ?>"
-                            data-desc="<?= e($loc['description']??'') ?>" data-status="<?= $loc['status'] ?>">
+                            data-desc="<?= e($loc['description']??'') ?>" data-status="<?= $loc['status'] ?>" aria-label="Edit <?= e($loc['name']) ?>">
                       <i class="bi bi-pencil"></i>
                     </button>
                     <?php if ((int)$loc['item_count'] === 0): ?>
@@ -110,7 +110,7 @@ include __DIR__ . '/../includes/sidebar_admin.php';
                       <?= csrfField() ?>
                       <input type="hidden" name="action" value="delete">
                       <input type="hidden" name="loc_id" value="<?= $loc['id'] ?>">
-                      <button class="btn btn-sm btn-outline-danger py-0 px-2"><i class="bi bi-trash"></i></button>
+                      <button class="btn btn-sm btn-outline-danger py-0 px-2" aria-label="Delete <?= e($loc['name']) ?>" data-pending-label="Deleting…"><i class="bi bi-trash"></i></button>
                     </form>
                     <?php endif; ?>
                   </div>
@@ -126,22 +126,22 @@ include __DIR__ . '/../includes/sidebar_admin.php';
       </div>
     </div>
   </div>
-</div>
+</main>
 
 <!-- Create Modal -->
-<div class="modal fade" id="createLocModal" tabindex="-1">
+<div class="modal fade" id="createLocModal" tabindex="-1" aria-labelledby="create-loc-title">
   <div class="modal-dialog">
     <div class="modal-content">
-      <div class="modal-header"><h5 class="modal-title"><i class="bi bi-plus-lg"></i> Add Location</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-header"><h2 class="modal-title" id="create-loc-title">Add location</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
       <form method="POST">
         <?= csrfField() ?><input type="hidden" name="action" value="create">
         <div class="modal-body">
-          <div class="mb-3"><label class="form-label">Location Name <span class="text-danger">*</span></label><input type="text" name="name" class="form-control" required placeholder="e.g. Main Library"></div>
+          <div class="mb-3"><label class="form-label" for="create-loc-name">Location Name <span class="text-danger">*</span></label><input type="text" name="name" id="create-loc-name" class="form-control" required placeholder="e.g. Main Library"></div>
           <div class="row g-3 mb-3">
-            <div class="col-7"><label class="form-label">Building</label><input type="text" name="building" class="form-control" placeholder="e.g. Main Building"></div>
-            <div class="col-5"><label class="form-label">Floor</label><input type="text" name="floor" class="form-control" placeholder="e.g. 2nd Floor"></div>
+            <div class="col-7"><label class="form-label" for="create-loc-building">Building</label><input type="text" name="building" id="create-loc-building" class="form-control" placeholder="e.g. Main Building"></div>
+            <div class="col-5"><label class="form-label" for="create-loc-floor">Floor</label><input type="text" name="floor" id="create-loc-floor" class="form-control" placeholder="e.g. 2nd Floor"></div>
           </div>
-          <div class="mb-3"><label class="form-label">Description</label><textarea name="description" class="form-control" rows="2"></textarea></div>
+          <div class="mb-3"><label class="form-label" for="create-loc-desc">Description</label><textarea name="description" id="create-loc-desc" class="form-control" rows="2"></textarea></div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -153,20 +153,20 @@ include __DIR__ . '/../includes/sidebar_admin.php';
 </div>
 
 <!-- Edit Modal -->
-<div class="modal fade" id="editLocModal" tabindex="-1">
+<div class="modal fade" id="editLocModal" tabindex="-1" aria-labelledby="edit-loc-title">
   <div class="modal-dialog">
     <div class="modal-content">
-      <div class="modal-header"><h5 class="modal-title"><i class="bi bi-pencil"></i> Edit Location</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-header"><h2 class="modal-title" id="edit-loc-title">Edit location</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
       <form method="POST">
         <?= csrfField() ?><input type="hidden" name="action" value="update"><input type="hidden" name="loc_id" id="editLocId">
         <div class="modal-body">
-          <div class="mb-3"><label class="form-label">Name</label><input type="text" name="name" class="form-control" id="editLocName" required></div>
+          <div class="mb-3"><label class="form-label" for="editLocName">Name</label><input type="text" name="name" class="form-control" id="editLocName" required></div>
           <div class="row g-3 mb-3">
-            <div class="col-7"><label class="form-label">Building</label><input type="text" name="building" class="form-control" id="editLocBuilding"></div>
-            <div class="col-5"><label class="form-label">Floor</label><input type="text" name="floor" class="form-control" id="editLocFloor"></div>
+            <div class="col-7"><label class="form-label" for="editLocBuilding">Building</label><input type="text" name="building" class="form-control" id="editLocBuilding"></div>
+            <div class="col-5"><label class="form-label" for="editLocFloor">Floor</label><input type="text" name="floor" class="form-control" id="editLocFloor"></div>
           </div>
-          <div class="mb-3"><label class="form-label">Description</label><textarea name="description" class="form-control" rows="2" id="editLocDesc"></textarea></div>
-          <div class="mb-3"><label class="form-label">Status</label>
+          <div class="mb-3"><label class="form-label" for="editLocDesc">Description</label><textarea name="description" class="form-control" rows="2" id="editLocDesc"></textarea></div>
+          <div class="mb-3"><label class="form-label" for="editLocStatus">Status</label>
             <select name="status" class="form-select" id="editLocStatus">
               <option value="active">Active</option><option value="inactive">Inactive</option>
             </select>

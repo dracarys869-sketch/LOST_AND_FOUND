@@ -119,7 +119,7 @@ include __DIR__ . '/../includes/header.php';
 include __DIR__ . '/../includes/sidebar_admin.php';
 ?>
 
-<div class="main-content">
+<main class="main-content" id="main-content" tabindex="-1">
   <div class="topbar">
     <button class="btn-icon me-2" id="sidebarToggle"><i class="bi bi-list"></i></button>
     <div class="topbar-title"><span class="text-muted-sm">Admin /</span> User Management</div>
@@ -151,10 +151,10 @@ include __DIR__ . '/../includes/sidebar_admin.php';
       <form method="GET" class="d-flex align-items-center gap-2 flex-wrap w-100">
         <div class="search-bar flex-grow-1">
           <i class="bi bi-search"></i>
-          <input type="text" name="search" class="form-control" placeholder="Search name, email, ID…"
+          <input type="search" name="search" class="form-control" aria-label="Search name, email, or student ID" placeholder="Search name, email, ID…"
                  value="<?= e($search) ?>">
         </div>
-        <select name="role" class="form-select" style="max-width:160px;">
+        <select name="role" class="form-select" aria-label="Filter by role">
           <option value="">All Roles</option>
           <option value="admin"    <?= $roleFilter==='admin'    ? 'selected':'' ?>>Admin</option>
           <option value="student"  <?= $roleFilter==='student'  ? 'selected':'' ?>>Student</option>
@@ -189,41 +189,34 @@ include __DIR__ . '/../includes/sidebar_admin.php';
             <tbody>
               <?php foreach ($pager['rows'] as $u): ?>
               <tr>
-                <td data-label="#" style="font-size:.75rem;color:var(--text-muted);"><?= $u['id'] ?></td>
+                <td data-label="#" class="text-muted"><?= $u['id'] ?></td>
                 <td data-label="Name">
                   <div class="d-flex align-items-center gap-2">
-                    <div class="sidebar-avatar" style="width:30px;height:30px;font-size:.7rem;">
+                    <div class="sidebar-avatar icon-sm">
                       <?= userInitials($u['name']) ?>
                     </div>
-                    <span class="fw-600" style="font-size:.85rem;"><?= e($u['name']) ?></span>
+                    <span class="fw-600"><?= e($u['name']) ?></span>
                     <?php if ((int)$u['id'] === (int)$user['id']): ?>
-                    <span class="badge bg-success" style="font-size:.65rem;">You</span>
+                    <span class="badge">You</span>
                     <?php endif; ?>
                   </div>
                 </td>
-                <td data-label="Email" style="font-size:.82rem;"><?= e($u['email']) ?></td>
+                <td data-label="Email"><?= e($u['email']) ?></td>
                 <td data-label="Role">
-                  <?php
-                  $roleBg = match($u['role']) {
-                    'admin'    => 'bg-danger',
-                    'security' => 'bg-warning text-dark',
-                    default    => 'bg-primary',
-                  };
-                  ?>
-                  <span class="badge <?= $roleBg ?>" style="font-size:.72rem;"><?= ucfirst($u['role']) ?></span>
+                  <span class="badge"><?= ucfirst($u['role']) ?></span>
                 </td>
-                <td data-label="Student ID" style="font-size:.82rem;"><?= e($u['student_id'] ?? '—') ?></td>
+                <td data-label="Student ID"><?= e($u['student_id'] ?? '—') ?></td>
                 <td data-label="Status"><?= statusBadge($u['status']) ?></td>
-                <td data-label="Joined" style="font-size:.78rem;white-space:nowrap;"><?= formatDate($u['created_at'], 'M j, Y') ?></td>
+                <td data-label="Joined" class="text-nowrap"><?= formatDate($u['created_at'], 'M j, Y') ?></td>
                 <td data-label="Actions">
                   <div class="d-flex gap-1">
                     <!-- Status change -->
-                    <form method="POST" class="d-inline">
+                    <form method="POST" class="d-inline" data-pending-label="Updating status…">
                       <?= csrfField() ?>
                       <input type="hidden" name="action"  value="update_status">
                       <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
-                      <select name="status" class="form-select form-select-sm py-0" style="width:auto;font-size:.75rem;"
-                              onchange="this.form.submit()">
+                      <select name="status" class="form-select form-select-sm w-auto" aria-label="Status for <?= e($u['name']) ?>"
+                              onchange="this.form.requestSubmit()">
                         <?php foreach (['active','inactive','suspended'] as $s): ?>
                         <option value="<?= $s ?>" <?= $u['status']===$s?'selected':'' ?>><?= ucfirst($s) ?></option>
                         <?php endforeach; ?>
@@ -231,11 +224,11 @@ include __DIR__ . '/../includes/sidebar_admin.php';
                     </form>
                     <?php if ((int)$u['id'] !== (int)$user['id']): ?>
                     <form method="POST" class="d-inline"
-                          onsubmit="return confirmDelete('Delete user <?= e($u['name']) ?>?')">
+                          data-confirm="Delete user <?= e($u['name']) ?>?" onsubmit="return confirmDelete(this.dataset.confirm)">
                       <?= csrfField() ?>
                       <input type="hidden" name="action"  value="delete">
                       <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
-                      <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2">
+                      <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" aria-label="Delete <?= e($u['name']) ?>" data-pending-label="Deleting…">
                         <i class="bi bi-trash"></i>
                       </button>
                     </form>
@@ -259,49 +252,49 @@ include __DIR__ . '/../includes/sidebar_admin.php';
       <?php endif; ?>
     </div>
   </div>
-</div>
+</main>
 
 <!-- Create User Modal -->
-<div class="modal fade" id="createUserModal" tabindex="-1">
+<div class="modal fade" id="createUserModal" tabindex="-1" aria-labelledby="create-user-title">
   <div class="modal-dialog modal-md">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title"><i class="bi bi-person-plus"></i> Add New User</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        <h2 class="modal-title" id="create-user-title"><i class="bi bi-person-plus"></i> Add user</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <form method="POST" action="">
         <?= csrfField() ?>
         <input type="hidden" name="action" value="create">
         <div class="modal-body">
           <div class="mb-3">
-            <label class="form-label">Full Name <span class="text-danger">*</span></label>
-            <input type="text" name="name" class="form-control" placeholder="e.g. Juan dela Cruz" required>
+            <label class="form-label" for="user-name">Full Name <span class="text-danger">*</span></label>
+            <input type="text" name="name" id="user-name" class="form-control" placeholder="e.g. Juan dela Cruz" required>
           </div>
           <div class="mb-3">
-            <label class="form-label">Email <span class="text-danger">*</span></label>
-            <input type="email" name="email" class="form-control" placeholder="user@school.edu" required>
+            <label class="form-label" for="user-email">Email <span class="text-danger">*</span></label>
+            <input type="email" name="email" id="user-email" class="form-control" placeholder="user@school.edu" required>
           </div>
           <div class="row g-3 mb-3">
             <div class="col-6">
-              <label class="form-label">Role <span class="text-danger">*</span></label>
-              <select name="role" class="form-select">
+              <label class="form-label" for="user-role">Role <span class="text-danger">*</span></label>
+              <select name="role" id="user-role" class="form-select">
                 <option value="student">Student</option>
                 <option value="security">Security Staff</option>
                 <option value="admin">Admin</option>
               </select>
             </div>
             <div class="col-6">
-              <label class="form-label">Student ID</label>
-              <input type="text" name="student_id" class="form-control" placeholder="2024-0001">
+              <label class="form-label" for="user-student-id">Student ID</label>
+              <input type="text" name="student_id" id="user-student-id" class="form-control" placeholder="2024-0001">
             </div>
           </div>
           <div class="mb-3">
-            <label class="form-label">Phone</label>
-            <input type="tel" name="phone" class="form-control" placeholder="+63 912 000 0000">
+            <label class="form-label" for="user-phone">Phone</label>
+            <input type="tel" name="phone" id="user-phone" class="form-control" placeholder="+63 912 000 0000">
           </div>
           <div class="mb-3">
-            <label class="form-label">Password <span class="text-danger">*</span></label>
-            <input type="password" name="password" class="form-control" placeholder="Min. 6 characters" required minlength="6">
+            <label class="form-label" for="user-password">Password <span class="text-danger">*</span></label>
+            <input type="password" name="password" id="user-password" class="form-control" placeholder="Min. 6 characters" required minlength="6" autocomplete="new-password">
           </div>
         </div>
         <div class="modal-footer">

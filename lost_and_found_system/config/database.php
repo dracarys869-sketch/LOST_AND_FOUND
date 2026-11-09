@@ -28,7 +28,7 @@ class Database
             $this->connection = new PDO($dsn, DB_USER, DB_PASS, $options);
         } catch (PDOException $e) {
             if (APP_DEBUG) {
-                die('<div style="background:#f8d7da;color:#721c24;padding:1rem;font-family:monospace;border-radius:4px;">
+                die('<div role="alert" style="background:var(--danger-bg,#fbeeea);color:var(--danger,#a32f2b);padding:var(--space-4,1rem);font-family:var(--font-sans,system-ui,sans-serif);border-radius:var(--radius,.5rem);">
                     <strong>Database Connection Failed:</strong><br>' . htmlspecialchars($e->getMessage()) . '
                 </div>');
             }

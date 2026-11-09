@@ -62,7 +62,7 @@ include __DIR__ . '/../includes/sidebar_admin.php';
 $ICONS = ['bi-phone','bi-laptop','bi-headphones','bi-person-badge','bi-bag','bi-book','bi-card-text','bi-gem','bi-activity','bi-key','bi-wallet2','bi-tag','bi-three-dots','bi-umbrella','bi-bicycle','bi-camera','bi-music-note','bi-sunglasses'];
 ?>
 
-<div class="main-content">
+<main class="main-content" id="main-content" tabindex="-1">
   <div class="topbar">
     <button class="btn-icon me-2" id="sidebarToggle"><i class="bi bi-list"></i></button>
     <div class="topbar-title"><span class="text-muted-sm">Admin /</span> Categories</div>
@@ -88,19 +88,19 @@ $ICONS = ['bi-phone','bi-laptop','bi-headphones','bi-person-badge','bi-bag','bi-
         <div class="card h-100">
           <div class="card-body">
             <div class="d-flex align-items-center gap-3 mb-3">
-              <div class="stat-icon" style="background:<?= e($cat['color']) ?>20;color:<?= e($cat['color']) ?>;width:48px;height:48px;">
+              <div class="stat-icon category-icon">
                 <i class="bi <?= e($cat['icon']) ?>"></i>
               </div>
               <div>
-                <div class="fw-700" style="font-size:.9rem;"><?= e($cat['name']) ?></div>
+                <h2 class="h6 mb-1"><?= e($cat['name']) ?></h2>
                 <?= statusBadge($cat['status']) ?>
               </div>
             </div>
             <?php if ($cat['description']): ?>
-            <p style="font-size:.78rem;color:var(--text-muted);"><?= e($cat['description']) ?></p>
+            <p class="small"><?= e($cat['description']) ?></p>
             <?php endif; ?>
-            <div style="font-size:.75rem;color:var(--text-muted);">
-              <i class="bi bi-box-seam me-1"></i> <?= number_format((int)$cat['item_count']) ?> items
+            <div class="text-muted-sm numeric">
+              <span class="category-swatch" style="background-color:<?= e($cat['color']) ?>;" title="Category color: <?= e($cat['color']) ?>" aria-hidden="true"></span><?= number_format((int)$cat['item_count']) ?> items
             </div>
           </div>
           <div class="card-footer d-flex gap-2">
@@ -116,7 +116,7 @@ $ICONS = ['bi-phone','bi-laptop','bi-headphones','bi-person-badge','bi-bag','bi-
               <?= csrfField() ?>
               <input type="hidden" name="action" value="delete">
               <input type="hidden" name="cat_id" value="<?= $cat['id'] ?>">
-              <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+              <button class="btn btn-sm btn-outline-danger" aria-label="Delete <?= e($cat['name']) ?>" data-pending-label="Deleting…"><i class="bi bi-trash"></i></button>
             </form>
             <?php endif; ?>
           </div>
@@ -128,29 +128,29 @@ $ICONS = ['bi-phone','bi-laptop','bi-headphones','bi-person-badge','bi-bag','bi-
       <?php endif; ?>
     </div>
   </div>
-</div>
+</main>
 
 <!-- Create Modal -->
-<div class="modal fade" id="createCatModal" tabindex="-1">
+<div class="modal fade" id="createCatModal" tabindex="-1" aria-labelledby="create-cat-title">
   <div class="modal-dialog">
     <div class="modal-content">
-      <div class="modal-header"><h5 class="modal-title"><i class="bi bi-plus-lg"></i> Add Category</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-header"><h2 class="modal-title" id="create-cat-title">Add category</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
       <form method="POST">
         <?= csrfField() ?>
         <input type="hidden" name="action" value="create">
         <div class="modal-body">
-          <div class="mb-3"><label class="form-label">Name <span class="text-danger">*</span></label><input type="text" name="name" class="form-control" required></div>
-          <div class="mb-3"><label class="form-label">Description</label><textarea name="description" class="form-control" rows="2"></textarea></div>
+          <div class="mb-3"><label class="form-label" for="create-cat-name">Name <span class="text-danger">*</span></label><input type="text" name="name" id="create-cat-name" class="form-control" required></div>
+          <div class="mb-3"><label class="form-label" for="create-cat-desc">Description</label><textarea name="description" id="create-cat-desc" class="form-control" rows="2"></textarea></div>
           <div class="row g-3 mb-3">
             <div class="col-8">
-              <label class="form-label">Icon (Bootstrap Icons class)</label>
-              <select name="icon" class="form-select">
+              <label class="form-label" for="create-cat-icon">Icon (Bootstrap Icons class)</label>
+              <select name="icon" id="create-cat-icon" class="form-select">
                 <?php foreach ($ICONS as $ic): ?><option value="<?= $ic ?>"><?= $ic ?></option><?php endforeach; ?>
               </select>
             </div>
             <div class="col-4">
-              <label class="form-label">Color</label>
-              <input type="color" name="color" class="form-control form-control-color w-100" value="#065F46">
+              <label class="form-label" for="create-cat-color">Color</label>
+              <input type="color" name="color" id="create-cat-color" class="form-control form-control-color w-100" value="#065F46">
             </div>
           </div>
         </div>
@@ -164,27 +164,27 @@ $ICONS = ['bi-phone','bi-laptop','bi-headphones','bi-person-badge','bi-bag','bi-
 </div>
 
 <!-- Edit Modal -->
-<div class="modal fade" id="editCatModal" tabindex="-1">
+<div class="modal fade" id="editCatModal" tabindex="-1" aria-labelledby="edit-cat-title">
   <div class="modal-dialog">
     <div class="modal-content">
-      <div class="modal-header"><h5 class="modal-title"><i class="bi bi-pencil"></i> Edit Category</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-header"><h2 class="modal-title" id="edit-cat-title">Edit category</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
       <form method="POST">
         <?= csrfField() ?>
         <input type="hidden" name="action" value="update">
         <input type="hidden" name="cat_id" id="editCatId">
         <div class="modal-body">
-          <div class="mb-3"><label class="form-label">Name</label><input type="text" name="name" class="form-control" id="editCatName" required></div>
-          <div class="mb-3"><label class="form-label">Description</label><textarea name="description" class="form-control" rows="2" id="editCatDesc"></textarea></div>
+          <div class="mb-3"><label class="form-label" for="editCatName">Name</label><input type="text" name="name" class="form-control" id="editCatName" required></div>
+          <div class="mb-3"><label class="form-label" for="editCatDesc">Description</label><textarea name="description" class="form-control" rows="2" id="editCatDesc"></textarea></div>
           <div class="row g-3 mb-3">
             <div class="col-6">
-              <label class="form-label">Icon</label>
+              <label class="form-label" for="editCatIcon">Icon</label>
               <select name="icon" class="form-select" id="editCatIcon">
                 <?php foreach ($ICONS as $ic): ?><option value="<?= $ic ?>"><?= $ic ?></option><?php endforeach; ?>
               </select>
             </div>
-            <div class="col-3"><label class="form-label">Color</label><input type="color" name="color" class="form-control form-control-color w-100" id="editCatColor"></div>
+            <div class="col-3"><label class="form-label" for="editCatColor">Color</label><input type="color" name="color" class="form-control form-control-color w-100" id="editCatColor"></div>
             <div class="col-3">
-              <label class="form-label">Status</label>
+              <label class="form-label" for="editCatStatus">Status</label>
               <select name="status" class="form-select" id="editCatStatus">
                 <option value="active">Active</option><option value="inactive">Inactive</option>
               </select>

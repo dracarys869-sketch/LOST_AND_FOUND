@@ -8,6 +8,7 @@ require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 
 requireRole('admin');
+ob_start();
 
 $fpdfFile = BASE_PATH . '/includes/fpdf/fpdf.php';
 if (!file_exists($fpdfFile)) {
@@ -134,8 +135,10 @@ foreach ($rows as $i => $row) {
     $pdf->TableRow(array_values($row), $colWidths, $i % 2 === 1);
 }
 
-$filename = str_replace(' ', '_', $title) . '_' . date('Y-m-d') . '.pdf';
-$pdf->Output('D', $filename);
-
 auditLog($user['id'], 'EXPORT_PDF', $type . '_report', null);
+$filename = preg_replace('/[^A-Za-z0-9_-]+/', '_', $title) . '_' . date('Y-m-d') . '.pdf';
+if (ob_get_length() !== false) {
+    ob_end_clean();
+}
+$pdf->Output('D', $filename);
 exit;

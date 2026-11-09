@@ -171,3 +171,7 @@ lost_and_found_system/
 5. **Student** reviews match → files an **ownership claim** with supporting proof
 6. **Admin** reviews the claim, supporting evidence, and available Decision Tree recommendation → **approves** or **rejects** it
 7. **Security** records **item release** → student receives confirmation notification
+
+## UI refresh and checks
+
+See [UI_REFRESH.md](UI_REFRESH.md) for the current design, workflow improvements, and verification commands. Students can use **Browse Items** to search campus reports and start an ownership claim directly from a found item.

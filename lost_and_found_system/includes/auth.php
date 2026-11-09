@@ -65,6 +65,8 @@ function currentUser(): array
             header('Location: ' . BASE_URL . '/login.php');
             exit;
         }
+        $_SESSION['role'] = $user['role'];
+        $_SESSION['name'] = $user['name'];
     }
     return $user;
 }
@@ -85,11 +87,70 @@ function loginUser(array $user): void
     auditLog($user['id'], 'LOGIN', 'users', $user['id']);
 }
 
+/** Honor return links only within this installation and the current role's routes. */
+function safeLoginRedirect(mixed $target, string $role): string
+{
+    $fallback = BASE_URL . '/' . (in_array($role, ['student', 'admin', 'security'], true) ? $role : 'student') . '/dashboard.php';
+    if (!is_string($target) || $target === '' || preg_match('/[\\\\\x00-\x20]/', $target)) return $fallback;
+    $url = parse_url($target);
+    $base = parse_url(BASE_URL);
+    if ($url === false || isset($url['user']) || isset($url['pass'])) return $fallback;
+    if (isset($url['host']) && (strcasecmp($url['host'], $base['host']) !== 0 || ($url['port'] ?? null) !== ($base['port'] ?? null))) return $fallback;
+    if (isset($url['scheme']) && $url['scheme'] !== $base['scheme']) return $fallback;
+    $path = rawurldecode($url['path'] ?? '');
+    $prefix = ($base['path'] ?? '') . '/';
+    if (!str_starts_with($path, $prefix) || preg_match('~(?:^|/)\.{1,2}(?:/|$)|[\\\\\x00-\x20]~', $path)) return $fallback;
+    $relative = substr($path, strlen($prefix));
+    if (!preg_match('~^(student|admin|security)/[a-z_]+\.php$~D', $relative)) return $fallback;
+    $destinationRole = strtok($relative, '/');
+    $shared = ['student/notifications.php'];
+    if ($role !== 'student') $shared[] = 'student/lost_items.php';
+    if ($destinationRole !== $role && !in_array($relative, $shared, true)) return $fallback;
+    return BASE_URL . '/' . $relative . (isset($url['query']) ? '?' . $url['query'] : '');
+}
+
+/** The cookie carries its expiry; hashing the entire value prevents extending it. */
+function rememberUser(int $userId, ?int $expires = null): void
+{
+    $expires ??= time() + 30 * 86400;
+    $token = $expires . '.' . bin2hex(random_bytes(32));
+    db()->execute('UPDATE users SET remember_token=? WHERE id=?', [hash('sha256', $token), $userId]);
+    setcookie('remember_token', $token, [
+        'expires' => $expires, 'path' => '/', 'httponly' => true,
+        'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off', 'samesite' => 'Lax',
+    ]);
+}
+
+function forgetRememberedUser(?int $userId = null): void
+{
+    if ($userId) db()->execute('UPDATE users SET remember_token=NULL WHERE id=?', [$userId]);
+    setcookie('remember_token', '', [
+        'expires' => time() - 3600, 'path' => '/', 'httponly' => true,
+        'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off', 'samesite' => 'Lax',
+    ]);
+    unset($_COOKIE['remember_token']);
+}
+
+function restoreRememberedUser(): void
+{
+    if (isLoggedIn() || !isset($_COOKIE['remember_token'])) return;
+    $token = $_COOKIE['remember_token'];
+    if (!is_string($token) || !preg_match('/^([0-9]{10})\.[a-f0-9]{64}$/D', $token, $match) || (int)$match[1] <= time()) {
+        forgetRememberedUser();
+        return;
+    }
+    $remembered = db()->fetchOne('SELECT id,name,role FROM users WHERE remember_token=? AND status="active" LIMIT 1', [hash('sha256', $token)]);
+    if (!$remembered) { forgetRememberedUser(); return; }
+    loginUser($remembered);
+    rememberUser((int)$remembered['id'], (int)$match[1]);
+}
+
 // ─── Logout ─────────────────────────────────────────────────
 function logoutUser(): void
 {
     $uid = $_SESSION['user_id'] ?? null;
     auditLog($uid, 'LOGOUT', 'users', $uid);
+    forgetRememberedUser($uid ? (int)$uid : null);
     session_unset();
     session_destroy();
 }
@@ -189,4 +250,5 @@ if (!function_exists('userInitials')) {
 }
 
 // Global user variable initialization
+restoreRememberedUser();
 $user = isLoggedIn() ? currentUser() : [];

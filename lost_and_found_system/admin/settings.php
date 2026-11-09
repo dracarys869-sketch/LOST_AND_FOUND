@@ -47,7 +47,7 @@ include __DIR__ . '/../includes/header.php';
 include __DIR__ . '/../includes/sidebar_admin.php';
 ?>
 
-<div class="main-content">
+<main class="main-content" id="main-content" tabindex="-1">
   <div class="topbar">
     <button class="btn-icon me-2" id="sidebarToggle"><i class="bi bi-list"></i></button>
     <div class="topbar-title"><span class="text-muted-sm">Admin /</span> Settings</div>
@@ -60,7 +60,7 @@ include __DIR__ . '/../includes/sidebar_admin.php';
       <div><h1 class="page-title">System Settings</h1><p class="page-subtitle">Configure application-wide preferences.</p></div>
     </div>
 
-    <form method="POST">
+    <form method="POST" data-pending-label="Saving settings…">
       <?= csrfField() ?>
       <div class="row g-4">
         <!-- School Info -->
@@ -69,20 +69,20 @@ include __DIR__ . '/../includes/sidebar_admin.php';
             <div class="card-header"><span class="card-title"><i class="bi bi-building"></i> School Information</span></div>
             <div class="card-body">
               <div class="mb-3">
-                <label class="form-label">School Name</label>
-                <input type="text" name="school_name" class="form-control" value="<?= e($sv('school_name','Greenfield Academy')) ?>">
+                <label class="form-label" for="school-name">School Name</label>
+                <input type="text" name="school_name" id="school-name" class="form-control" value="<?= e($sv('school_name', APP_NAME)) ?>">
               </div>
               <div class="mb-3">
-                <label class="form-label">Address</label>
-                <textarea name="school_address" class="form-control" rows="2"><?= e($sv('school_address')) ?></textarea>
+                <label class="form-label" for="school-address">Address</label>
+                <textarea name="school_address" id="school-address" class="form-control" rows="2"><?= e($sv('school_address')) ?></textarea>
               </div>
               <div class="mb-3">
-                <label class="form-label">Email</label>
-                <input type="email" name="school_email" class="form-control" value="<?= e($sv('school_email')) ?>">
+                <label class="form-label" for="school-email">Email</label>
+                <input type="email" name="school_email" id="school-email" class="form-control" value="<?= e($sv('school_email')) ?>">
               </div>
               <div class="mb-3">
-                <label class="form-label">Phone</label>
-                <input type="text" name="school_phone" class="form-control" value="<?= e($sv('school_phone')) ?>">
+                <label class="form-label" for="school-phone">Phone</label>
+                <input type="text" name="school_phone" id="school-phone" class="form-control" value="<?= e($sv('school_phone')) ?>">
               </div>
             </div>
           </div>
@@ -94,24 +94,24 @@ include __DIR__ . '/../includes/sidebar_admin.php';
             <div class="card-header"><span class="card-title"><i class="bi bi-gear"></i> System Preferences</span></div>
             <div class="card-body">
               <div class="mb-3">
-                <label class="form-label">Match Threshold (%)</label>
-                <input type="number" name="match_threshold" class="form-control" min="50" max="100"
+                <label class="form-label" for="match-threshold">Match Threshold (%)</label>
+                <input type="number" name="match_threshold" id="match-threshold" class="form-control" min="50" max="100"
                        value="<?= e($sv('match_threshold', '75')) ?>">
                 <div class="form-text">Minimum similarity score to flag as a possible match (50–100).</div>
               </div>
               <div class="mb-3">
-                <label class="form-label">Session Timeout (minutes)</label>
-                <input type="number" name="session_timeout" class="form-control" min="5" max="480"
+                <label class="form-label" for="session-timeout">Session Timeout (minutes)</label>
+                <input type="number" name="session_timeout" id="session-timeout" class="form-control" min="5" max="480"
                        value="<?= e($sv('session_timeout', '30')) ?>">
               </div>
               <div class="mb-3">
-                <label class="form-label">Max Upload Size (MB)</label>
-                <input type="number" name="max_upload_size" class="form-control" min="1" max="20"
+                <label class="form-label" for="max-upload-size">Max Upload Size (MB)</label>
+                <input type="number" name="max_upload_size" id="max-upload-size" class="form-control" min="1" max="20"
                        value="<?= e($sv('max_upload_size', '5')) ?>">
               </div>
               <div class="mb-3">
-                <label class="form-label">Items Per Page</label>
-                <select name="items_per_page" class="form-select">
+                <label class="form-label" for="items-per-page">Items Per Page</label>
+                <select name="items_per_page" id="items-per-page" class="form-select">
                   <?php foreach ([5,10,15,20,25,50] as $n): ?>
                   <option value="<?= $n ?>" <?= (int)$sv('items_per_page', '10') === $n ? 'selected' : '' ?>><?= $n ?></option>
                   <?php endforeach; ?>
@@ -139,6 +139,6 @@ include __DIR__ . '/../includes/sidebar_admin.php';
       </div>
     </form>
   </div>
-</div>
+</main>
 
 <?php include __DIR__ . '/../includes/footer.php'; ?>

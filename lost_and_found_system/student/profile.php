@@ -74,7 +74,7 @@ include __DIR__ . '/../includes/header.php';
 include __DIR__ . '/../includes/sidebar_student.php';
 ?>
 
-<div class="main-content">
+<main class="main-content" id="main-content" tabindex="-1">
   <div class="topbar">
     <button class="btn-icon me-2" id="sidebarToggle"><i class="bi bi-list"></i></button>
     <div class="topbar-title"><span class="text-muted-sm">Account /</span> My Profile</div>
@@ -100,17 +100,16 @@ include __DIR__ . '/../includes/sidebar_student.php';
         <div class="card text-center">
           <div class="card-body py-4">
             <?php if ($profileUser['profile_photo']): ?>
-            <img src="<?= photoUrl($profileUser['profile_photo']) ?>" alt="Profile"
-                 style="width:90px;height:90px;border-radius:50%;object-fit:cover;border:3px solid var(--primary-light);margin-bottom:1rem;">
+            <img src="<?= photoUrl($profileUser['profile_photo']) ?>" alt="Your profile photo" class="profile-avatar mb-3">
             <?php else: ?>
-            <div class="sidebar-avatar mx-auto mb-3" style="width:80px;height:80px;font-size:1.8rem;">
+            <div class="sidebar-avatar profile-avatar mx-auto mb-3">
               <?= userInitials($profileUser['name']) ?>
             </div>
             <?php endif; ?>
             <h5 class="fw-700 mb-1"><?= e($profileUser['name']) ?></h5>
             <p class="text-muted-sm"><?= e($profileUser['email']) ?></p>
-            <span class="badge <?= match($profileUser['role']){'admin'=>'bg-danger','security'=>'bg-warning text-dark',default=>'bg-primary'} ?>"><?= ucfirst($profileUser['role']) ?></span>
-            <div class="mt-3" style="font-size:.8rem;color:var(--text-muted);">
+            <span class="badge"><?= ucfirst($profileUser['role']) ?></span>
+            <div class="mt-3 text-muted-sm numeric">
               <?php if ($profileUser['student_id']): ?>
               <div><i class="bi bi-person-badge me-1"></i><?= e($profileUser['student_id']) ?></div>
               <?php endif; ?>
@@ -127,27 +126,27 @@ include __DIR__ . '/../includes/sidebar_student.php';
       <div class="col-lg-8">
         <div class="card mb-3">
           <div class="card-header"><span class="card-title"><i class="bi bi-person-gear"></i> Edit Profile</span></div>
-          <form method="POST" enctype="multipart/form-data">
+          <form method="POST" enctype="multipart/form-data" data-pending-label="Saving profile…">
             <?= csrfField() ?>
             <input type="hidden" name="action" value="update_profile">
             <div class="card-body">
               <div class="mb-3">
-                <label class="form-label">Full Name <span class="text-danger">*</span></label>
-                <input type="text" name="name" class="form-control" required value="<?= e($profileUser['name']) ?>">
+                <label class="form-label" for="profile-name">Full Name <span class="text-danger">*</span></label>
+                <input type="text" name="name" id="profile-name" class="form-control" required value="<?= e($profileUser['name']) ?>" autocomplete="name">
               </div>
               <div class="row g-3 mb-3">
                 <div class="col-md-6">
-                  <label class="form-label">Student ID</label>
-                  <input type="text" name="student_id" class="form-control" value="<?= e($profileUser['student_id'] ?? '') ?>">
+                  <label class="form-label" for="student-id">Student ID</label>
+                  <input type="text" name="student_id" id="student-id" class="form-control" value="<?= e($profileUser['student_id'] ?? '') ?>">
                 </div>
                 <div class="col-md-6">
-                  <label class="form-label">Phone</label>
-                  <input type="tel" name="phone" class="form-control" value="<?= e($profileUser['phone'] ?? '') ?>">
+                  <label class="form-label" for="profile-phone">Phone</label>
+                  <input type="tel" name="phone" id="profile-phone" class="form-control" value="<?= e($profileUser['phone'] ?? '') ?>" autocomplete="tel">
                 </div>
               </div>
               <div class="mb-3">
-                <label class="form-label">Profile Photo</label>
-                <input type="file" name="profile_photo" class="form-control" accept="image/*">
+                <label class="form-label" for="profile-photo">Profile Photo</label>
+                <input type="file" name="profile_photo" id="profile-photo" class="form-control" accept="image/*">
               </div>
             </div>
             <div class="card-footer d-flex justify-content-end">
@@ -159,21 +158,21 @@ include __DIR__ . '/../includes/sidebar_student.php';
         <!-- Change Password -->
         <div class="card">
           <div class="card-header"><span class="card-title"><i class="bi bi-shield-lock"></i> Change Password</span></div>
-          <form method="POST">
+          <form method="POST" data-pending-label="Changing password…">
             <?= csrfField() ?>
             <input type="hidden" name="action" value="change_password">
             <div class="card-body">
               <div class="mb-3">
-                <label class="form-label">Current Password</label>
-                <input type="password" name="current_password" class="form-control" required>
+                <label class="form-label" for="current-password">Current Password</label>
+                <input type="password" name="current_password" id="current-password" class="form-control" required autocomplete="current-password">
               </div>
               <div class="mb-3">
-                <label class="form-label">New Password</label>
-                <input type="password" name="new_password" class="form-control" required minlength="8">
+                <label class="form-label" for="new-password">New Password</label>
+                <input type="password" name="new_password" id="new-password" class="form-control" required minlength="8" autocomplete="new-password">
               </div>
               <div class="mb-3">
-                <label class="form-label">Confirm New Password</label>
-                <input type="password" name="confirm_password" class="form-control" required>
+                <label class="form-label" for="confirm-password">Confirm New Password</label>
+                <input type="password" name="confirm_password" id="confirm-password" class="form-control" required autocomplete="new-password">
               </div>
             </div>
             <div class="card-footer d-flex justify-content-end">
@@ -184,6 +183,6 @@ include __DIR__ . '/../includes/sidebar_student.php';
       </div>
     </div>
   </div>
-</div>
+</main>
 
 <?php include __DIR__ . '/../includes/footer.php'; ?>

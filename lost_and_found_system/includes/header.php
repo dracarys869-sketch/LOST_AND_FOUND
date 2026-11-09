@@ -25,7 +25,7 @@ $notifCount   = unreadCount($user['id']);
 $schoolName   = getSetting('school_name', APP_NAME);
 $isDark       = isset($_COOKIE['dark_mode']) && $_COOKIE['dark_mode'] === '1';
 $themeAttr    = $isDark ? 'data-theme="dark"' : '';
-$pageTitle    = isset($pageTitle) ? e($pageTitle) . ' — ' . e($schoolName) : e($schoolName);
+$documentTitle = isset($pageTitle) ? e($pageTitle) . ' — ' . e($schoolName) : e($schoolName);
 ?>
 <!DOCTYPE html>
 <html lang="en" <?= $themeAttr ?>>
@@ -33,7 +33,7 @@ $pageTitle    = isset($pageTitle) ? e($pageTitle) . ' — ' . e($schoolName) : e
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="description" content="<?= e($schoolName) ?> Lost and Found Management System">
-  <title><?= $pageTitle ?></title>
+  <title><?= $documentTitle ?></title>
   <link rel="icon" type="image/png" href="<?= ASSETS_URL ?>/images/lost-found-logo.png">
 
   <!-- Bootstrap 5 -->
@@ -43,25 +43,25 @@ $pageTitle    = isset($pageTitle) ? e($pageTitle) . ' — ' . e($schoolName) : e
   <!-- Custom Theme -->
   <link rel="stylesheet" href="<?= ASSETS_URL ?>/css/style.css?v=<?= filemtime(BASE_PATH . '/assets/css/style.css') ?>">
 
+  <script>window.BASE_URL = <?= json_encode(BASE_URL, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;</script>
   <?php if (isset($extraHead)) echo $extraHead; ?>
 </head>
 <body>
-
-
-
+<a class="skip-link" href="#main-content">Skip to content</a>
 <!-- Sidebar Overlay (mobile) -->
-<div class="sidebar-overlay" id="sidebarOverlay"></div>
+<div class="sidebar-overlay" id="sidebarOverlay" aria-hidden="true"></div>
 
 <!-- Toast Container -->
 <div class="toast-container" id="toastContainer"></div>
+<div class="visually-hidden" id="interactionStatus" role="status" aria-atomic="true"></div>
 
 <?php
 // Render flash message as a JS toast after DOM loads
 $flash = getFlash();
 if ($flash) {
-    $ft = e($flash['type'] === 'danger' ? 'error' : $flash['type']);
-    $fm = e($flash['message']);
-    echo "<script>document.addEventListener('DOMContentLoaded',()=>showToast('{$ft}','{$fm}'));</script>";
+    $ft = json_encode($flash['type'] === 'danger' ? 'error' : $flash['type'], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+    $fm = json_encode($flash['message'], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+    echo "<script>document.addEventListener('DOMContentLoaded',()=>showToast({$ft},{$fm}));</script>";
 }
 ?>
 

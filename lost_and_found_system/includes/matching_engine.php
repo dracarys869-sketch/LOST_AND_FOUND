@@ -253,7 +253,7 @@ class MatchingEngine
         // Notify the student who lost the item
         createNotification(
             $lost['user_id'],
-            'Possible Match Found! 🎉',
+            'Possible match found',
             "A possible match ({$scoreStr}% similarity) was found for your lost \"{$lost['item_name']}\". 
              Please review the match details and submit a claim if it's yours.",
             'match',

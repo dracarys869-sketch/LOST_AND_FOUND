@@ -65,13 +65,19 @@ $claims = db()->fetchAll(
 );
 
 $showForm = !empty($errors) || (isset($_GET['action']) && $_GET['action'] === 'new');
+$availableItems = $showForm && !$preFilledFound ? db()->fetchAll(
+    'SELECT fi.id,fi.item_name,fi.report_number FROM found_items fi
+     WHERE fi.status IN ("active","matched") AND NOT EXISTS
+     (SELECT 1 FROM claims c WHERE c.found_item_id=fi.id AND c.claimant_id=? AND c.status<>"rejected")
+     ORDER BY fi.created_at DESC,fi.id DESC LIMIT 250', [$uid]
+) : [];
 
 $extraHead = '<script>const BASE_URL="' . BASE_URL . '";</script>';
 include __DIR__ . '/../includes/header.php';
 include __DIR__ . '/../includes/sidebar_student.php';
 ?>
 
-<div class="main-content">
+<main class="main-content" id="main-content" tabindex="-1">
   <div class="topbar">
     <button class="btn-icon me-2" id="sidebarToggle"><i class="bi bi-list"></i></button>
     <div class="topbar-title"><span class="text-muted-sm">Student /</span> My Claims</div>
@@ -82,14 +88,14 @@ include __DIR__ . '/../includes/sidebar_student.php';
 
   <div class="content-area">
     <div class="page-header">
-      <div><h1 class="page-title">My Claims</h1><p class="page-subtitle">Ownership claims you have submitted.</p></div>
+      <div><h1 class="page-title"><?= $showForm ? 'Claim a found item' : 'My claims' ?></h1><p class="page-subtitle"><?= $showForm ? 'Describe what makes the item yours for administrator review.' : 'Follow your ownership reviews and collection status.' ?></p></div>
+      <?php if (!$showForm): ?><a href="?action=new" class="btn btn-primary"><i class="bi bi-plus-lg" aria-hidden="true"></i> New claim</a><?php endif; ?>
     </div>
 
     <!-- New claim form -->
     <?php if ($showForm): ?>
-    <div class="card mb-4">
-      <div class="card-header"><span class="card-title"><i class="bi bi-file-earmark-plus"></i> File a New Claim</span></div>
-      <form method="POST" enctype="multipart/form-data">
+    <div class="card mb-4 form-width">
+      <form method="POST" enctype="multipart/form-data" data-pending-label="Submitting ownership claim…">
         <?= csrfField() ?>
         <div class="card-body">
           <?php if ($errors): ?>
@@ -98,12 +104,12 @@ include __DIR__ . '/../includes/sidebar_student.php';
 
           <?php if ($preFilledFound): ?>
           <div class="alert alert-info d-flex gap-3 mb-4">
-            <i class="bi bi-box-seam" style="font-size:1.4rem;"></i>
+            <i class="bi bi-box-seam" aria-hidden="true"></i>
             <div>
               <strong>Filing claim for: <?= e($preFilledFound['item_name']) ?></strong>
-              <div style="font-size:.82rem;">Report #<?= e($preFilledFound['report_number']) ?></div>
+              <div class="small numeric">Report #<?= e($preFilledFound['report_number']) ?></div>
               <?php if ($preFilledFound['storage_location']): ?>
-              <div style="font-size:.82rem;"><i class="bi bi-geo-alt me-1"></i><?= e($preFilledFound['storage_location']) ?></div>
+              <div class="small"><i class="bi bi-geo-alt me-1"></i><?= e($preFilledFound['storage_location']) ?></div>
               <?php endif; ?>
             </div>
           </div>
@@ -111,12 +117,16 @@ include __DIR__ . '/../includes/sidebar_student.php';
           <input type="hidden" name="match_id"      value="<?= $preFilledMatchId ?>">
           <?php else: ?>
           <div class="mb-3">
-            <label class="form-label">Found Item ID</label>
-            <input type="number" name="found_item_id" class="form-control" required placeholder="Found item ID">
+            <label class="form-label" for="found-item-id">Which item are you claiming?</label>
+            <select name="found_item_id" id="found-item-id" class="form-select" required>
+              <option value="">Select a found item…</option>
+              <?php foreach ($availableItems as $availableItem): ?><option value="<?= (int)$availableItem['id'] ?>"><?= e($availableItem['item_name']) ?> — <?= e($availableItem['report_number']) ?></option><?php endforeach; ?>
+            </select>
+            <?php if ($user['role'] === 'student'): ?><div class="form-text">Need a closer look? <a href="<?= BASE_URL ?>/student/browse.php">Browse found items</a> and choose the one you recognize.</div><?php endif; ?>
           </div>
           <?php endif; ?>
 
-          <div class="alert alert-info">Describe the item from your own knowledge. Your evidence is private. An administrator makes the final ownership decision.</div>
+          <p class="small">Describe the item from your own knowledge. Your evidence is private. An administrator makes the final ownership decision.</p>
           <div class="row g-3 mb-3">
             <div class="col-md-4">
               <label class="form-label" for="claimedCategory">Your item's category</label>
@@ -143,10 +153,10 @@ include __DIR__ . '/../includes/sidebar_student.php';
             </div>
           </div>
           <div class="mb-3">
-            <label class="form-label">Proof of Ownership <span class="text-danger">*</span></label>
-            <textarea name="proof_description" class="form-control" rows="5" required minlength="10" maxlength="4000"
+            <label class="form-label" for="proof-description">Proof of Ownership <span class="text-danger">*</span></label>
+            <textarea name="proof_description" id="proof-description" class="form-control" rows="5" required minlength="10" maxlength="4000"
                       placeholder="Describe your item and explain your ownership evidence."><?= e($formValue('proof_description')) ?></textarea>
-            <div class="form-text">The more detail you provide, the faster your claim will be reviewed.</div>
+            <div class="form-text">Include details that help a reviewer distinguish your item from similar belongings.</div>
           </div>
           <div class="mb-3">
             <label class="form-label" for="claimMarks">Unique identifying characteristics</label>
@@ -161,8 +171,8 @@ include __DIR__ . '/../includes/sidebar_student.php';
           <p class="form-text">Leave optional answers blank if you do not know. Do not provide passwords, PINs, or account credentials.</p>
 
           <div class="mb-3">
-            <label class="form-label">Supporting Photo (optional)</label>
-            <input type="file" name="proof_photo" class="form-control" accept="image/*">
+            <label class="form-label" for="proof-photo">Supporting Photo (optional)</label>
+            <input type="file" name="proof_photo" id="proof-photo" class="form-control" accept="image/*">
             <div class="form-text">Upload a photo that proves ownership (e.g., a previous photo with the item, receipt, etc.)</div>
           </div>
         </div>
@@ -178,9 +188,6 @@ include __DIR__ . '/../includes/sidebar_student.php';
     <div class="card">
       <div class="card-header">
         <span class="card-title"><i class="bi bi-file-earmark-check"></i> Claim History</span>
-        <?php if (!$showForm): ?>
-        <a href="?action=new" class="btn btn-primary btn-sm"><i class="bi bi-plus me-1"></i>New Claim</a>
-        <?php endif; ?>
       </div>
       <div class="card-body p-0">
         <div class="table-responsive">
@@ -191,18 +198,18 @@ include __DIR__ . '/../includes/sidebar_student.php';
               <tr>
                 <td data-label="#">#<?= $claim['id'] ?></td>
                 <td data-label="Item">
-                  <div class="fw-600" style="font-size:.85rem;"><?= e($claim['item_name']) ?></div>
-                  <code style="font-size:.7rem;"><?= e($claim['found_rn']) ?></code>
+                  <div class="fw-600"><?= e($claim['item_name']) ?></div>
+                  <code><?= e($claim['found_rn']) ?></code>
                 </td>
-                <td data-label="Storage" style="font-size:.8rem;"><?= e($claim['storage_location'] ?? '—') ?></td>
+                <td data-label="Storage"><?= e($claim['storage_location'] ?? '—') ?></td>
                 <td data-label="Status"><?= statusBadge($claim['status']) ?></td>
-                <td data-label="Notes" style="font-size:.8rem;max-width:200px;">
+                <td data-label="Notes" class="table-note">
                   <?= $claim['review_notes'] ? snippet($claim['review_notes'],70) : '<span class="text-muted">—</span>' ?>
                   <?php if ($claim['reviewer_name']): ?>
-                  <div style="font-size:.72rem;color:var(--text-muted);">by <?= e($claim['reviewer_name']) ?></div>
+                  <div class="text-muted-sm">by <?= e($claim['reviewer_name']) ?></div>
                   <?php endif; ?>
                 </td>
-                <td data-label="Submitted" style="font-size:.75rem;white-space:nowrap;"><?= timeAgo($claim['created_at']) ?></td>
+                <td data-label="Submitted" class="text-nowrap"><?= timeAgo($claim['created_at']) ?></td>
               </tr>
               <?php endforeach; ?>
               <?php if (empty($claims)): ?>
@@ -214,6 +221,6 @@ include __DIR__ . '/../includes/sidebar_student.php';
       </div>
     </div>
   </div>
-</div>
+</main>
 
 <?php include __DIR__ . '/../includes/footer.php'; ?>

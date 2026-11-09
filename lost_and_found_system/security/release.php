@@ -56,7 +56,7 @@ include __DIR__ . '/../includes/header.php';
 include __DIR__ . '/../includes/sidebar_security.php';
 ?>
 
-<div class="main-content">
+<main class="main-content" id="main-content" tabindex="-1">
   <div class="topbar">
     <button class="btn-icon me-2" id="sidebarToggle"><i class="bi bi-list"></i></button>
     <div class="topbar-title"><span class="text-muted-sm">Security /</span> Release Items</div>
@@ -76,8 +76,8 @@ include __DIR__ . '/../includes/sidebar_security.php';
     <div class="card mb-3 <?= $claim['id']===$preFillClaimId?'border-primary':'' ?>">
       <div class="card-header">
         <div>
-          <span class="card-title"><i class="bi bi-check-circle text-success me-2"></i>Approved Claim #<?= $claim['id'] ?></span>
-          <div style="font-size:.75rem;color:var(--text-muted);">Approved <?= timeAgo($claim['updated_at']) ?></div>
+          <h2 class="card-title">Claim #<?= $claim['id'] ?></h2>
+          <div class="text-muted-sm">Approved <?= timeAgo($claim['updated_at']) ?></div>
         </div>
         <span class="badge bg-success">Approved</span>
       </div>
@@ -86,12 +86,12 @@ include __DIR__ . '/../includes/sidebar_security.php';
           <div class="col-md-4">
             <small class="text-muted-sm">Claimant</small>
             <div class="fw-700"><?= e($claim['claimant_name']) ?></div>
-            <?php if ($claim['student_id']): ?><div style="font-size:.8rem;">ID: <?= e($claim['student_id']) ?></div><?php endif; ?>
+            <?php if ($claim['student_id']): ?><div class="small">ID: <?= e($claim['student_id']) ?></div><?php endif; ?>
           </div>
           <div class="col-md-4">
             <small class="text-muted-sm">Item</small>
             <div class="fw-700"><?= e($claim['item_name']) ?></div>
-            <code style="font-size:.72rem;"><?= e($claim['found_rn']) ?></code>
+            <code><?= e($claim['found_rn']) ?></code>
           </div>
           <div class="col-md-4">
             <small class="text-muted-sm">Storage Location</small>
@@ -100,11 +100,11 @@ include __DIR__ . '/../includes/sidebar_security.php';
         </div>
       </div>
       <div class="card-footer">
-        <form method="POST" class="d-flex align-items-center gap-2 flex-wrap">
+        <form method="POST" class="d-flex align-items-center gap-2 flex-wrap" data-pending-label="Recording item handover…">
           <?= csrfField() ?>
           <input type="hidden" name="claim_id" value="<?= $claim['id'] ?>">
-          <input type="text" name="notes" class="form-control flex-grow-1" placeholder="Release notes (optional)…">
-          <button type="submit" class="btn btn-success" onclick="return confirm('Confirm item release to <?= e($claim['claimant_name']) ?>?')">
+          <input type="text" name="notes" class="form-control flex-grow-1" aria-label="Release notes for claim <?= (int)$claim['id'] ?> (optional)" placeholder="Release notes (optional)…">
+          <button type="submit" class="btn <?= (int)$claim['id'] === ($preFillClaimId ?: (int)$approved[0]['id']) ? 'btn-primary' : 'btn-outline-secondary' ?>" data-confirm="Confirm item release to <?= e($claim['claimant_name']) ?>?" onclick="return confirm(this.dataset.confirm)">
             <i class="bi bi-check2-circle me-2"></i>Record Release
           </button>
         </form>
@@ -119,7 +119,7 @@ include __DIR__ . '/../includes/sidebar_security.php';
       <div class="card-header"><span class="card-title"><i class="bi bi-clock-history"></i> Recent Releases</span></div>
       <div class="card-body p-0">
         <div class="table-responsive">
-          <table class="table table-hover mb-0" style="font-size:.83rem;">
+          <table class="table table-hover mb-0">
             <thead><tr><th>Item</th><th>Released To</th><th>Released By</th><th>Date</th><th>Notes</th></tr></thead>
             <tbody>
               <?php foreach ($history as $r): ?>
@@ -127,8 +127,8 @@ include __DIR__ . '/../includes/sidebar_security.php';
                 <td class="fw-600"><?= e($r['item_name']) ?></td>
                 <td><?= e($r['released_to_name']) ?></td>
                 <td><?= e($r['released_by_name']) ?></td>
-                <td style="white-space:nowrap;"><?= formatDate($r['release_date'],'M j, Y h:i A') ?></td>
-                <td style="color:var(--text-muted);"><?= e($r['notes'] ?? '—') ?></td>
+                <td class="text-nowrap"><?= formatDate($r['release_date'],'M j, Y h:i A') ?></td>
+                <td class="text-muted"><?= e($r['notes'] ?? '—') ?></td>
               </tr>
               <?php endforeach; ?>
             </tbody>
@@ -138,6 +138,6 @@ include __DIR__ . '/../includes/sidebar_security.php';
     </div>
     <?php endif; ?>
   </div>
-</div>
+</main>
 
 <?php include __DIR__ . '/../includes/footer.php'; ?>

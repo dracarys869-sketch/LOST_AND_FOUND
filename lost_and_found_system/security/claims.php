@@ -54,7 +54,7 @@ include __DIR__ . '/../includes/header.php';
 include __DIR__ . '/../includes/sidebar_security.php';
 ?>
 
-<div class="main-content">
+<main class="main-content" id="main-content" tabindex="-1">
   <div class="topbar">
     <button class="btn-icon me-2" id="sidebarToggle"><i class="bi bi-list"></i></button>
     <div class="topbar-title"><span class="text-muted-sm">Security /</span> Claims</div>
@@ -65,22 +65,21 @@ include __DIR__ . '/../includes/sidebar_security.php';
       <div><h1 class="page-title">Claims Review</h1><p class="page-subtitle">Record private evidence for administrator review and release administrator-approved items.</p></div>
     </div>
 
-    <div class="d-flex gap-2 mb-3">
+    <nav class="filter-tabs" aria-label="Filter claims by status">
       <?php foreach ([''=> 'All','pending'=>'Pending','approved'=>'Approved','rejected'=>'Rejected'] as $v=>$l): ?>
-      <a href="?status=<?= $v ?>" class="btn btn-sm <?= $statusFilter===$v?'btn-primary':'btn-outline-secondary' ?>"><?= $l ?></a>
+      <a href="?status=<?= $v ?>" class="btn btn-sm btn-outline-secondary <?= $statusFilter===$v?'active':'' ?>" <?= $statusFilter===$v?'aria-current="page"':'' ?>><?= $l ?></a>
       <?php endforeach; ?>
-    </div>
+    </nav>
 
     <?php foreach ($pager['rows'] as $claim): ?>
-    <?php $isFocus = $claim['id'] === $focus; ?>
-    <div class="card mb-3 <?= $isFocus ? 'border-primary' : '' ?>" id="claim-<?= $claim['id'] ?>"
-         style="<?= $isFocus ? 'border-width:2px;' : '' ?>">
+    <?php $isFocus = (int)$claim['id'] === ($focus ?: (int)$pager['rows'][0]['id']); ?>
+    <div class="card mb-3 <?= $isFocus ? 'border-primary' : '' ?>" id="claim-<?= $claim['id'] ?>">
       <div class="card-header">
         <div>
           <span class="card-title"><i class="bi bi-file-earmark-check"></i> Claim #<?= $claim['id'] ?></span>
-          <div style="font-size:.75rem;color:var(--text-muted);margin-top:.15rem;">
+          <div class="text-muted-sm mt-1">
             Submitted <?= timeAgo($claim['created_at']) ?> for <strong><?= e($claim['item_name']) ?></strong>
-            <code style="font-size:.7rem;"><?= e($claim['found_rn']) ?></code>
+            <code><?= e($claim['found_rn']) ?></code>
           </div>
         </div>
         <?= statusBadge($claim['status']) ?>
@@ -88,40 +87,40 @@ include __DIR__ . '/../includes/sidebar_security.php';
       <div class="card-body">
         <div class="row g-3">
           <div class="col-md-4">
-            <h6 class="fw-700 mb-2" style="font-size:.8rem;">Claimant</h6>
-            <div style="font-size:.85rem;font-weight:600;"><?= e($claim['claimant_name']) ?></div>
-            <div style="font-size:.78rem;color:var(--text-muted);"><?= e($claim['claimant_email']) ?></div>
-            <?php if ($claim['student_id']): ?><div style="font-size:.75rem;">ID: <?= e($claim['student_id']) ?></div><?php endif; ?>
+            <h3 class="h6 mb-2">Claimant</h3>
+            <div class="small fw-600"><?= e($claim['claimant_name']) ?></div>
+            <div class="text-muted-sm"><?= e($claim['claimant_email']) ?></div>
+            <?php if ($claim['student_id']): ?><div class="small">ID: <?= e($claim['student_id']) ?></div><?php endif; ?>
           </div>
           <div class="col-md-4">
-            <h6 class="fw-700 mb-2" style="font-size:.8rem;">Item in Custody</h6>
-            <div style="font-size:.85rem;font-weight:600;"><?= e($claim['item_name']) ?></div>
+            <h3 class="h6 mb-2">Item in custody</h3>
+            <div class="small fw-600"><?= e($claim['item_name']) ?></div>
             <?php if ($claim['storage_location']): ?>
-            <div style="font-size:.78rem;"><i class="bi bi-geo-alt me-1 text-primary"></i><?= e($claim['storage_location']) ?></div>
+            <div class="small"><i class="bi bi-geo-alt me-1 text-primary"></i><?= e($claim['storage_location']) ?></div>
             <?php endif; ?>
           </div>
           <div class="col-md-4">
-            <h6 class="fw-700 mb-2" style="font-size:.8rem;">Proof of Ownership</h6>
-            <div style="font-size:.82rem;color:var(--text-muted);">
-              <?= $claim['proof_description'] ? e($claim['proof_description']) : '<em>No description provided.</em>' ?>
+            <h3 class="h6 mb-2">Proof of ownership</h3>
+            <div class="text-muted-sm">
+              <?= $claim['proof_description'] ? e($claim['proof_description']) : 'No description provided.' ?>
             </div>
           </div>
         </div>
       </div>
 
-      <div class="card-body border-top">
+      <div class="card-body">
         <a href="<?= BASE_URL ?>/security/item_verification.php?item_id=<?= $claim['found_item_id'] ?>" class="btn btn-sm btn-outline-secondary mb-3">Private Item Reference</a>
         <?php if ($user['role'] === 'admin'): ?><a href="<?= BASE_URL ?>/admin/claim_review.php?id=<?= $claim['id'] ?>" class="btn btn-sm btn-outline-primary mb-3">Administrator Review / Decision</a><?php endif; ?>
-        <form method="POST">
+        <form method="POST" data-pending-label="Saving private review…">
           <?= csrfField() ?><input type="hidden" name="action" value="review"><input type="hidden" name="claim_id" value="<?= $claim['id'] ?>">
           <label class="form-label" for="notes-<?= $claim['id'] ?>">Private evidence review (visible to staff)</label>
           <textarea name="notes" id="notes-<?= $claim['id'] ?>" class="form-control mb-2" rows="2" required minlength="10" maxlength="4000"><?= e($claim['security_notes'] ?? '') ?></textarea>
-          <button class="btn btn-sm btn-primary">Save Review for Administrator</button>
+          <button class="btn btn-sm <?= $isFocus && $claim['status'] !== 'approved' ? 'btn-primary' : 'btn-outline-secondary' ?>">Save Review for Administrator</button>
         </form>
       </div>
       <?php if ($claim['status'] === 'approved' && $claim['final_decision'] === 'approved'): ?>
       <div class="card-footer d-flex justify-content-end">
-        <a href="<?= BASE_URL ?>/security/release.php?claim_id=<?= $claim['id'] ?>" class="btn btn-sm btn-primary">
+        <a href="<?= BASE_URL ?>/security/release.php?claim_id=<?= $claim['id'] ?>" class="btn btn-sm <?= $isFocus ? 'btn-primary' : 'btn-outline-secondary' ?>">
           <i class="bi bi-check2-circle me-1"></i>Record Release
         </a>
       </div>
@@ -134,11 +133,11 @@ include __DIR__ . '/../includes/sidebar_security.php';
     <?php endif; ?>
     <?php if ($pager['pages'] > 1): echo '<div class="d-flex justify-content-center mt-3">'.renderPagination($pager).'</div>'; endif; ?>
   </div>
-</div>
+</main>
 
 <script>
 <?php if ($focus): ?>
-document.getElementById('claim-<?= $focus ?>')?.scrollIntoView({behavior:'smooth',block:'center'});
+document.getElementById('claim-<?= $focus ?>')?.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',block:'center'});
 <?php endif; ?>
 </script>
 

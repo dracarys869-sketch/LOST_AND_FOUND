@@ -10,65 +10,35 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/notifications.php';
-require_once __DIR__ . '/../includes/matching_engine.php';
-require_once __DIR__ . '/../includes/qr_generator.php';
+require_once __DIR__ . '/../includes/item_reports.php';
 
 requireRole('security', 'admin');
 
 $categories = getCategories();
 $locations  = getLocations();
 $errors     = [];
+$formValue = static fn(string $key, string $default = ''): string => is_string($_POST[$key] ?? null) ? $_POST[$key] : $default;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verifyCsrf();
     $action = $_POST['action'] ?? '';
 
     if ($action === 'create') {
-        $itemName        = sanitize($_POST['item_name']        ?? '');
-        $categoryId      = (int)($_POST['category_id']         ?? 0);
-        $locationId      = (int)($_POST['location_id']         ?? 0);
-        $brand           = sanitize($_POST['brand']            ?? '');
-        $color           = sanitize($_POST['color']            ?? '');
-        $description     = sanitize($_POST['description']      ?? '');
-        $dateFound       = sanitize($_POST['date_found']       ?? '');
-        $timeFound       = sanitize($_POST['time_found']       ?? '');
-        $storageLocation = sanitize($_POST['storage_location'] ?? '');
-
-        if (strlen($itemName) < 2) $errors[] = 'Item name required.';
-        if (!$categoryId)          $errors[] = 'Category required.';
-        if (!$locationId)          $errors[] = 'Location required.';
-        if (!$dateFound)           $errors[] = 'Date found required.';
+        $validated = reportInput($_POST, 'found', $categories, $locations);
+        $errors = $validated['errors'];
 
         if (empty($errors)) {
-            db()->beginTransaction();
             try {
-                $reportNum = generateReportNumber(FOUND_PREFIX, 'found_items');
-                $itemId    = (int)db()->insert(
-                    'INSERT INTO found_items (report_number,user_id,category_id,location_id,item_name,brand,color,description,date_found,time_found,storage_location,status)
-                     VALUES (?,?,?,?,?,?,?,?,?,?,?,"active")',
-                    [$reportNum,$user['id'],$categoryId,$locationId,$itemName,$brand?:null,$color?:null,$description?:null,$dateFound,$timeFound?:null,$storageLocation?:null]
-                );
-
-                // Generate QR
-                $qrPath = generateQRCode($itemId, $reportNum);
-                if ($qrPath) db()->execute('UPDATE found_items SET qr_code_path=? WHERE id=?', [$qrPath,$itemId]);
-
-                // Photos
-                if (!empty($_FILES['photos']['name'][0])) {
-                    $paths = uploadMultipleFiles($_FILES['photos'], 'found_items');
-                    foreach ($paths as $i => $p) {
-                        db()->insert('INSERT INTO item_photos (item_type,item_id,photo_path,is_primary) VALUES ("found",?,?,?)', [$itemId,$p,$i===0?1:0]);
-                    }
-                }
-
-                auditLog($user['id'],'CREATE_FOUND_ITEM','found_items',$itemId);
-                db()->commit();
-                MatchingEngine::runForFoundItem($itemId);
-                setFlash('success',"Found item {$reportNum} logged successfully. QR code generated.");
-                redirect(BASE_URL.'/security/item_verification.php?item_id=' . $itemId);
-            } catch (Exception $e) {
-                db()->rollBack();
-                $errors[] = 'Error: '.$e->getMessage();
+                $saved = saveItemReport('found', (int)$user['id'], $validated['values'], $_FILES['photos'] ?? []);
+                $message = 'Found item ' . $saved['report_number'] . ' saved. Add its verification details below.';
+                if (!$saved['matching_complete']) $message .= ' Automatic matching is temporarily unavailable; your report is already saved.';
+                setFlash($saved['matching_complete'] ? 'success' : 'warning', $message);
+                redirect(BASE_URL . '/security/item_verification.php?item_id=' . $saved['id']);
+            } catch (InvalidArgumentException $error) {
+                $errors[] = $error->getMessage();
+            } catch (Throwable $error) {
+                error_log('Found intake failed: ' . get_class($error));
+                $errors[] = 'Your report could not be saved. Your details are below; please try again.';
             }
         }
     }
@@ -81,58 +51,59 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$showForm = isset($_GET['action']) && $_GET['action'] === 'new';
+$showForm = !empty($errors) || (isset($_GET['action']) && $_GET['action'] === 'new');
 $search   = sanitize($_GET['search'] ?? '');
 $status   = sanitize($_GET['status'] ?? '');
 $page     = max(1,(int)($_GET['page'] ?? 1));
 
-$sql    = 'SELECT fi.*, c.name AS cat, l.name AS loc FROM found_items fi LEFT JOIN categories c ON fi.category_id=c.id LEFT JOIN locations l ON fi.location_id=l.id WHERE fi.status != "released"';
+$sql    = 'SELECT fi.*, c.name AS cat, l.name AS loc FROM found_items fi LEFT JOIN categories c ON fi.category_id=c.id LEFT JOIN locations l ON fi.location_id=l.id WHERE 1=1';
 $params = [];
 if ($search) { $sql .= ' AND fi.item_name LIKE ?'; $params[] = "%$search%"; }
 if ($status) { $sql .= ' AND fi.status=?'; $params[] = $status; }
+else { $sql .= ' AND fi.status != "released"'; }
 $sql .= ' ORDER BY fi.created_at DESC';
 $pager = paginate($sql, $params, $page);
 
 $extraHead = '<script>const BASE_URL="' . BASE_URL . '";</script>';
 include __DIR__ . '/../includes/header.php';
-include __DIR__ . '/../includes/sidebar_security.php';
+include __DIR__ . '/../includes/sidebar_' . $user['role'] . '.php';
 ?>
 
-<div class="main-content">
+<main class="main-content" id="main-content" tabindex="-1">
   <div class="topbar">
     <button class="btn-icon me-2" id="sidebarToggle"><i class="bi bi-list"></i></button>
-    <div class="topbar-title"><span class="text-muted-sm">Security /</span> Found Items</div>
+    <div class="topbar-title"><span class="text-muted-sm"><?= e(roleLabel()) ?> /</span> Found Items</div>
     <div class="topbar-actions">
       
     </div>
   </div>
   <div class="content-area">
     <div class="page-header">
-      <div><h1 class="page-title">Found Items</h1><p class="page-subtitle">Log and manage found items in custody.</p></div>
-      <a href="?action=new" class="btn btn-primary btn-sm"><i class="bi bi-plus me-1"></i>Log Found Item</a>
+      <div><h1 class="page-title"><?= $showForm ? 'Log a found item' : 'Found items in custody' ?></h1><p class="page-subtitle">Record item details and where they are stored.</p></div>
+       <?php if (!$showForm): ?><a href="?action=new" class="btn btn-primary"><i class="bi bi-plus-lg" aria-hidden="true"></i> Log found item</a><?php else: ?><a href="<?= BASE_URL ?>/security/found_items.php" class="btn btn-outline-secondary"><i class="bi bi-arrow-left" aria-hidden="true"></i> Back to found items</a><?php endif; ?>
     </div>
 
     <!-- New Found Item Form -->
     <?php if ($showForm): ?>
-    <div class="card mb-4">
-      <div class="card-header"><span class="card-title"><i class="bi bi-plus-circle"></i> Log New Found Item</span></div>
-      <form method="POST" enctype="multipart/form-data">
+    <div class="card mb-4 form-width">
+      <form method="POST" enctype="multipart/form-data" novalidate data-pending-label="Saving found item and generating its QR code…">
         <?= csrfField() ?><input type="hidden" name="action" value="create">
-        <?php if ($errors): ?><div class="card-body pt-0 pb-0"><div class="alert alert-danger mt-3"><?php foreach ($errors as $e): ?><div><?= e($e) ?></div><?php endforeach; ?></div></div><?php endif; ?>
+        <?php if ($errors): ?><div class="card-body pt-0 pb-0"><div class="alert alert-danger mt-3" role="alert"><?php foreach ($errors as $e): ?><div><?= e($e) ?></div><?php endforeach; ?></div></div><?php endif; ?>
         <div class="card-body">
           <div class="row g-3">
-            <div class="col-md-6"><label class="form-label">Item Name *</label><input type="text" name="item_name" class="form-control" required></div>
-            <div class="col-md-6"><label class="form-label">Category *</label><select name="category_id" class="form-select" required><option value="">Select…</option><?php foreach ($categories as $c): ?><option value="<?= $c['id'] ?>"><?= e($c['name']) ?></option><?php endforeach; ?></select></div>
-            <div class="col-md-6"><label class="form-label">Found Location *</label><select name="location_id" class="form-select" required><option value="">Select…</option><?php foreach ($locations as $l): ?><option value="<?= $l['id'] ?>"><?= e($l['name']) ?></option><?php endforeach; ?></select></div>
-            <div class="col-md-6"><label class="form-label">Storage Location</label><input type="text" name="storage_location" class="form-control" placeholder="e.g. Security Office — Cabinet A"></div>
-            <div class="col-md-4"><label class="form-label">Brand</label><input type="text" name="brand" class="form-control"></div>
-            <div class="col-md-4"><label class="form-label">Color</label><input type="text" name="color" class="form-control"></div>
-            <div class="col-md-4"><label class="form-label">Date Found *</label><input type="date" name="date_found" class="form-control" required value="<?= date('Y-m-d') ?>"></div>
-            <div class="col-12"><label class="form-label">Private Detailed Description</label><textarea name="description" class="form-control" rows="3"></textarea><div class="form-text">Keep the item name generic. Record unique details here; add an independently checked verification reference after saving.</div></div>
+            <div class="col-md-6"><label class="form-label" for="item-name">Item Name *</label><input type="text" name="item_name" id="item-name" class="form-control" required minlength="2" maxlength="150" value="<?= e($formValue('item_name')) ?>" placeholder="e.g. Black canvas backpack"></div>
+            <div class="col-md-6"><label class="form-label" for="category">Category *</label><select name="category_id" id="category" class="form-select" required><option value="">Select…</option><?php foreach ($categories as $c): ?><option value="<?= $c['id'] ?>" <?= $formValue('category_id') == $c['id'] ? 'selected' : '' ?>><?= e($c['name']) ?></option><?php endforeach; ?></select></div>
+            <div class="col-md-6"><label class="form-label" for="location">Found Location *</label><select name="location_id" id="location" class="form-select" required><option value="">Select…</option><?php foreach ($locations as $l): ?><option value="<?= $l['id'] ?>" <?= $formValue('location_id') == $l['id'] ? 'selected' : '' ?>><?= e($l['name']) ?></option><?php endforeach; ?></select></div>
+            <div class="col-md-6"><label class="form-label" for="storage">Storage Location</label><input type="text" name="storage_location" id="storage" class="form-control" maxlength="200" placeholder="e.g. Security Office — Cabinet A" value="<?= e($formValue('storage_location')) ?>"></div>
+            <div class="col-md-4"><label class="form-label" for="brand">Brand</label><input type="text" name="brand" id="brand" class="form-control" maxlength="100" value="<?= e($formValue('brand')) ?>"></div>
+            <div class="col-md-4"><label class="form-label" for="color">Color</label><input type="text" name="color" id="color" class="form-control" maxlength="50" value="<?= e($formValue('color')) ?>"></div>
+            <div class="col-md-4"><label class="form-label" for="date-found">Date Found *</label><input type="date" name="date_found" id="date-found" class="form-control" required max="<?= date('Y-m-d') ?>" value="<?= e($formValue('date_found', date('Y-m-d'))) ?>"></div>
+            <div class="col-12"><label class="form-label" for="description">Private Detailed Description</label><textarea name="description" id="description" class="form-control" rows="3" maxlength="4000"><?= e($formValue('description')) ?></textarea><div class="form-text">Keep the item name generic. Record unique details here; add an independently checked verification reference after saving.</div></div>
             <div class="col-12">
-              <label class="form-label">Photos (private until reviewed by an administrator)</label>
+              <label class="form-label" for="photosInput">Item photos (optional)</label>
               <div class="drop-zone" id="dropZone"><i class="bi bi-cloud-upload"></i><p>Drop photos here or click to browse</p></div>
-              <input type="file" id="photosInput" name="photos[]" multiple accept="image/*" class="d-none">
+              <input type="file" id="photosInput" name="photos[]" multiple accept="image/jpeg,image/png,image/gif,image/webp" class="d-none">
+              <div class="form-text">JPG, PNG, GIF, WebP · up to 5 MB each. Photos appear on the item board; put private identifying details in the description.</div>
               <div class="photo-preview-grid" id="photoPreviewGrid"></div>
             </div>
           </div>
@@ -145,12 +116,13 @@ include __DIR__ . '/../includes/sidebar_security.php';
     </div>
     <?php endif; ?>
 
+    <?php if (!$showForm): ?>
     <!-- Filters -->
     <div class="filters-row">
       <form method="GET" class="d-flex gap-2 flex-wrap w-100">
-        <div class="search-bar flex-grow-1"><i class="bi bi-search"></i><input type="text" name="search" class="form-control" placeholder="Search item…" value="<?= e($search) ?>"></div>
-        <select name="status" class="form-select" style="max-width:160px;">
-          <option value="">All Status</option>
+        <div class="search-bar flex-grow-1"><i class="bi bi-search"></i><input type="search" name="search" class="form-control" aria-label="Search found items" placeholder="Search item…" value="<?= e($search) ?>"></div>
+        <select name="status" class="form-select" aria-label="Filter by status">
+          <option value="">All in custody</option>
           <?php foreach (['active','matched','claimed','released'] as $s): ?>
           <option value="<?= $s ?>" <?= $status===$s?'selected':'' ?>><?= ucfirst($s) ?></option>
           <?php endforeach; ?>
@@ -168,13 +140,13 @@ include __DIR__ . '/../includes/sidebar_security.php';
             <tbody>
               <?php foreach ($pager['rows'] as $fi): ?>
               <tr>
-                <td><code style="font-size:.72rem;"><?= e($fi['report_number']) ?></code></td>
+                <td><code><?= e($fi['report_number']) ?></code></td>
                 <td>
-                  <div class="fw-600" style="font-size:.85rem;"><?= e($fi['item_name']) ?></div>
-                  <div style="font-size:.72rem;color:var(--text-muted);"><?= e($fi['cat']) ?> <?= $fi['color']?'· '.$fi['color']:'' ?></div>
+                  <div class="fw-600"><?= e($fi['item_name']) ?></div>
+                  <div class="text-muted-sm"><?= e($fi['cat']) ?> <?= $fi['color'] ? '· ' . e($fi['color']) : '' ?></div>
                 </td>
-                <td style="font-size:.8rem;"><?= e($fi['loc']) ?></td>
-                <td style="font-size:.8rem;"><?= e($fi['storage_location'] ?? '—') ?></td>
+                <td><?= e($fi['loc']) ?></td>
+                <td><?= e($fi['storage_location'] ?? '—') ?></td>
                 <td><?= statusBadge($fi['status']) ?></td>
                 <td>
                   <?php if ($fi['qr_code_path']): ?>
@@ -182,20 +154,20 @@ include __DIR__ . '/../includes/sidebar_security.php';
                      class="btn btn-sm btn-outline-primary py-0 px-2" title="View QR Code">
                     <i class="bi bi-qr-code"></i>
                   </a>
-                  <?php else: ?><span class="text-muted" style="font-size:.75rem;">—</span><?php endif; ?>
+                  <?php else: ?><span class="text-muted">—</span><?php endif; ?>
                 </td>
-                <td style="font-size:.78rem;white-space:nowrap;"><?= formatDate($fi['date_found']) ?></td>
+                <td class="text-nowrap"><?= formatDate($fi['date_found']) ?></td>
                 <td>
                   <a href="<?= BASE_URL ?>/security/item_verification.php?item_id=<?= $fi['id'] ?>" class="btn btn-sm btn-outline-primary py-0 px-2" title="Private verification reference"><i class="bi bi-shield-lock"></i> Verify</a>
                   <button class="btn btn-sm btn-outline-secondary py-0 px-2"
                           data-bs-toggle="modal" data-bs-target="#storageModal"
-                          data-id="<?= $fi['id'] ?>" data-storage="<?= e($fi['storage_location']??'') ?>">
+                          data-id="<?= $fi['id'] ?>" data-storage="<?= e($fi['storage_location']??'') ?>" aria-label="Update storage for <?= e($fi['item_name']) ?>">
                     <i class="bi bi-geo-alt"></i>
                   </button>
                 </td>
               </tr>
               <?php endforeach; ?>
-              <?php if (empty($pager['rows'])): ?><tr><td colspan="8"><div class="empty-state py-3"><i class="bi bi-inbox"></i><h5>No found items</h5></div></td></tr><?php endif; ?>
+              <?php if (empty($pager['rows'])): ?><tr><td colspan="8"><div class="empty-state"><i class="bi bi-inbox" aria-hidden="true"></i><h3><?= $search || $status ? 'No items match your filters' : 'No items in custody yet' ?></h3><p><?= $search || $status ? 'Try another search or clear the filters to see items in custody.' : 'Log a found item to start its custody record.' ?></p><a href="<?= $search || $status ? '?' : '?action=new' ?>" class="text-link"><?= $search || $status ? 'Clear filters' : 'Log found item' ?></a></div></td></tr><?php endif; ?>
             </tbody>
           </table>
         </div>
@@ -207,17 +179,18 @@ include __DIR__ . '/../includes/sidebar_security.php';
       </div>
       <?php endif; ?>
     </div>
+    <?php endif; ?>
   </div>
-</div>
+</main>
 
 <!-- Storage Modal -->
-<div class="modal fade" id="storageModal" tabindex="-1">
+<div class="modal fade" id="storageModal" tabindex="-1" aria-labelledby="storage-modal-title">
   <div class="modal-dialog"><div class="modal-content">
-    <div class="modal-header"><h5 class="modal-title"><i class="bi bi-geo-alt"></i> Update Storage Location</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-header"><h2 class="modal-title" id="storage-modal-title">Update storage location</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
     <form method="POST">
       <?= csrfField() ?><input type="hidden" name="action" value="update_storage"><input type="hidden" name="item_id" id="storageItemId">
       <div class="modal-body">
-        <label class="form-label">Storage Location</label>
+        <label class="form-label" for="storageValue">Storage Location</label>
         <input type="text" name="storage_location" class="form-control" id="storageValue" placeholder="e.g. Security Office — Cabinet A">
       </div>
       <div class="modal-footer">

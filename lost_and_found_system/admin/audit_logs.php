@@ -57,7 +57,7 @@ include __DIR__ . '/../includes/header.php';
 include __DIR__ . '/../includes/sidebar_admin.php';
 ?>
 
-<div class="main-content">
+<main class="main-content" id="main-content" tabindex="-1">
   <div class="topbar">
     <button class="btn-icon me-2" id="sidebarToggle"><i class="bi bi-list"></i></button>
     <div class="topbar-title"><span class="text-muted-sm">Admin /</span> Audit Logs</div>
@@ -74,13 +74,13 @@ include __DIR__ . '/../includes/sidebar_admin.php';
       <form method="GET" class="d-flex gap-2 w-100">
         <div class="search-bar flex-grow-1">
           <i class="bi bi-search"></i>
-          <input type="text" name="search" class="form-control" placeholder="Search action, user, table…" value="<?= e($search) ?>">
+          <input type="search" name="search" class="form-control" aria-label="Search action, user, or table" placeholder="Search action, user, table…" value="<?= e($search) ?>">
         </div>
         <select name="action" class="form-select form-select-sm" aria-label="Filter by action"><option value="">All actions</option><?php foreach ($filterActions as $row): ?><option value="<?= e($row['action']) ?>" <?= $action === $row['action'] ? 'selected' : '' ?>><?= e(str_replace('_', ' ', $row['action'])) ?></option><?php endforeach; ?></select>
         <select name="table" class="form-select form-select-sm" aria-label="Filter by table"><option value="">All tables</option><?php foreach ($filterTables as $row): ?><option value="<?= e($row['table_name']) ?>" <?= $table === $row['table_name'] ? 'selected' : '' ?>><?= e($row['table_name']) ?></option><?php endforeach; ?></select>
         <select name="user_id" class="form-select form-select-sm" aria-label="Filter by user"><option value="0">All users</option><?php foreach ($filterUsers as $row): ?><option value="<?= (int)$row['id'] ?>" <?= $userId === (int)$row['id'] ? 'selected' : '' ?>><?= e($row['name']) ?> (<?= e($row['role']) ?>)</option><?php endforeach; ?></select>
-        <input type="number" name="record_id" class="form-control form-control-sm" min="1" placeholder="Record ID" value="<?= $recordId ?: '' ?>">
-        <button type="submit" class="btn btn-outline-primary btn-sm">Search</button>
+        <input type="number" name="record_id" class="form-control form-control-sm" min="1" aria-label="Record ID" placeholder="Record ID" value="<?= $recordId ?: '' ?>">
+        <button type="submit" class="btn btn-primary">Search logs</button>
         <a href="?" class="btn btn-outline-secondary btn-sm">Reset</a>
       </form>
     </div>
@@ -88,23 +88,23 @@ include __DIR__ . '/../includes/sidebar_admin.php';
     <div class="card">
       <div class="card-body p-0">
         <div class="table-responsive">
-          <table class="table table-hover mb-0" style="font-size:.82rem;">
+          <table class="table table-hover mb-0">
             <thead><tr><th>#</th><th>Action</th><th>User</th><th>Table</th><th>Record</th><th>Details</th><th>IP</th><th>Time</th></tr></thead>
             <tbody>
               <?php foreach ($pager['rows'] as $log): ?>
               <?php [$icon,$iconClass] = $actionIcons[$log['action']] ?? ['bi-dot','text-muted']; ?>
               <tr>
-                <td style="font-size:.72rem;"><?= $log['id'] ?></td>
+                <td><?= $log['id'] ?></td>
                 <td>
                   <div class="d-flex align-items-center gap-2">
-                    <i class="bi <?= $icon ?> <?= $iconClass ?>"></i>
+                    <i class="bi <?= $icon ?> text-muted" aria-hidden="true"></i>
                     <span class="fw-600"><?= e(str_replace('_',' ',$log['action'])) ?></span>
                   </div>
                 </td>
                 <td>
                   <?php if ($log['user_name']): ?>
                   <div><?= e($log['user_name']) ?></div>
-                  <div style="font-size:.72rem;color:var(--text-muted);"><?= ucfirst($log['user_role'] ?? '') ?></div>
+                  <div class="text-muted-sm"><?= ucfirst($log['user_role'] ?? '') ?></div>
                   <?php else: ?>
                   <span class="text-muted">System</span>
                   <?php endif; ?>
@@ -112,8 +112,8 @@ include __DIR__ . '/../includes/sidebar_admin.php';
                 <td><?= e($log['table_name'] ?? '—') ?></td>
                 <td><?= $log['record_id'] ? '#'.$log['record_id'] : '—' ?></td>
                 <td><?php if ($log['old_values'] || $log['new_values']): ?><details><summary class="small">View</summary><pre class="small mb-0"><?= e(json_encode(['old' => json_decode($log['old_values'] ?? 'null', true), 'new' => json_decode($log['new_values'] ?? 'null', true)], JSON_PRETTY_PRINT)) ?></pre></details><?php else: ?>—<?php endif; ?></td>
-                <td style="font-family:monospace;font-size:.72rem;"><?= e($log['ip_address'] ?? '—') ?></td>
-                <td style="white-space:nowrap;" title="<?= e($log['created_at']) ?>">
+                <td><code><?= e($log['ip_address'] ?? '—') ?></code></td>
+                <td class="text-nowrap" title="<?= e($log['created_at']) ?>">
                   <?= timeAgo($log['created_at']) ?>
                 </td>
               </tr>
@@ -133,6 +133,6 @@ include __DIR__ . '/../includes/sidebar_admin.php';
       <?php endif; ?>
     </div>
   </div>
-</div>
+</main>
 
 <?php include __DIR__ . '/../includes/footer.php'; ?>

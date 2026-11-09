@@ -8,14 +8,12 @@ require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/functions.php';
 
 if (isLoggedIn()) { redirect(dashboardUrl()); }
-if (!getSetting('allow_registration', true)) {
-    die('Registration is currently disabled. Please contact the administrator.');
-}
+$registrationEnabled = getSetting('allow_registration', true);
 
 $errors = [];
 $values = [];
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $registrationEnabled) {
     verifyCsrf();
 
     $values = [
@@ -63,34 +61,32 @@ $isDark = isset($_COOKIE['dark_mode']) && $_COOKIE['dark_mode'] === '1';
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="<?= ASSETS_URL ?>/css/style.css?v=<?= filemtime(BASE_PATH . '/assets/css/style.css') ?>">
+  <link rel="stylesheet" href="<?= ASSETS_URL ?>/css/register.css?v=<?= filemtime(BASE_PATH . '/assets/css/register.css') ?>">
 </head>
 <body>
-<div class="auth-wrapper">
-
-  <div class="auth-left d-none d-lg-flex">
-    <div class="auth-illustration">
-      <div class="auth-logo animate-float"><i class="bi bi-person-plus"></i></div>
-      <div class="auth-tagline">Join the Portal</div>
-      <p class="auth-desc">Create your student account to report lost items, track found items, and get notified when your belongings are located.</p>
-    </div>
-  </div>
-
-  <div class="auth-right" style="width:460px;">
-    <div style="width:100%;max-width:400px;">
-      <div class="mb-4 d-flex align-items-center justify-content-between" style="position: relative;">
-        <a href="<?= BASE_URL ?>/" class="btn btn-icon text-muted bg-transparent opacity-75 hover-opacity-100 p-0" 
-           style="font-size: 1.5rem; position: absolute; left: 0; top: 50%; transform: translateY(-50%); z-index: 20;"
-           title="Back to Public Feed">
-          <i class="bi bi-arrow-left-circle"></i>
-        </a>
-        <div class="w-100 text-center">
-          <h1 class="auth-form-title" style="margin-bottom: 0.15rem; margin-top: 0.25rem;">Create Account</h1>
-          <p class="auth-form-sub mb-0">Student self-registration</p>
-        </div>
+<a class="skip-link" href="#main-content">Skip to registration</a>
+<div class="auth-page register-page">
+  <header><a href="<?= BASE_URL ?>/" class="auth-brand"><img src="<?= ASSETS_URL ?>/images/lost-found-logo.png" alt="" width="40" height="40"><span><strong>Campus Lost &amp; Found</strong><small><?= e(getSetting('school_name', APP_NAME)) ?></small></span></a></header>
+  <main class="auth-shell" id="main-content" tabindex="-1">
+    <aside class="auth-info">
+      <span class="eyebrow">LOOKING OUT FOR EACH OTHER</span>
+      <h2>Your campus. Your things. Connected.</h2>
+      <p>Join your campus lost and found to report an item, follow updates, and help someone else's belongings find their way home.</p>
+      <ol class="auth-steps">
+        <li><span><strong>One place for your reports</strong>Keep every lost and found report organized.</span></li>
+        <li><span><strong>Updates that matter</strong>Follow possible matches and ownership reviews.</span></li>
+        <li><span><strong>A community that helps</strong>Small acts of care make a big difference.</span></li>
+      </ol>
+    </aside>
+    <section class="auth-card" aria-labelledby="auth-title">
+      <a href="<?= BASE_URL ?>/" class="auth-back-link"><i class="bi bi-arrow-left" aria-hidden="true"></i> Back to item reports</a>
+      <div class="auth-heading">
+        <h1 class="auth-form-title" id="auth-title"><?= $registrationEnabled ? 'Create your account' : 'Registration is paused' ?></h1>
+        <p class="auth-form-sub"><?= $registrationEnabled ? 'For students. Fields marked * are required.' : 'Contact your campus administrator for help creating an account.' ?></p>
       </div>
 
       <?php if ($errors): ?>
-      <div class="alert alert-danger mb-3">
+      <div class="alert alert-danger mb-3" role="alert">
         <i class="bi bi-exclamation-circle me-2"></i>
         <ul class="mb-0 ps-3">
           <?php foreach ($errors as $err): ?>
@@ -100,7 +96,8 @@ $isDark = isset($_COOKIE['dark_mode']) && $_COOKIE['dark_mode'] === '1';
       </div>
       <?php endif; ?>
 
-      <form method="POST" action="" novalidate>
+      <?php if ($registrationEnabled): ?>
+      <form method="POST" action="" novalidate data-pending-label="Creating your account…">
         <?= csrfField() ?>
 
         <div class="mb-3">
@@ -109,7 +106,7 @@ $isDark = isset($_COOKIE['dark_mode']) && $_COOKIE['dark_mode'] === '1';
             <span class="input-group-text"><i class="bi bi-person"></i></span>
             <input type="text" id="name" name="name" class="form-control"
                    placeholder="e.g. Juan dela Cruz"
-                   value="<?= e($values['name'] ?? '') ?>" required>
+                   value="<?= e($values['name'] ?? '') ?>" required minlength="3" maxlength="100" autocomplete="name">
           </div>
         </div>
 
@@ -119,22 +116,22 @@ $isDark = isset($_COOKIE['dark_mode']) && $_COOKIE['dark_mode'] === '1';
             <span class="input-group-text"><i class="bi bi-envelope"></i></span>
             <input type="email" id="email" name="email" class="form-control"
                    placeholder="yourname@school.edu"
-                   value="<?= e($values['email'] ?? '') ?>" required>
+                   value="<?= e($values['email'] ?? '') ?>" required maxlength="150" autocomplete="email" autocapitalize="none" spellcheck="false">
           </div>
         </div>
 
         <div class="row g-3 mb-3">
-          <div class="col-6">
+          <div class="col-sm-6">
             <label for="student_id" class="form-label">Student ID</label>
             <input type="text" id="student_id" name="student_id" class="form-control"
                    placeholder="2024-0001"
                    value="<?= e($values['student_id'] ?? '') ?>">
           </div>
-          <div class="col-6">
+          <div class="col-sm-6">
             <label for="phone" class="form-label">Phone Number</label>
             <input type="tel" id="phone" name="phone" class="form-control"
                    placeholder="+63 912 000 0000"
-                   value="<?= e($values['phone'] ?? '') ?>">
+                   value="<?= e($values['phone'] ?? '') ?>" autocomplete="tel">
           </div>
         </div>
 
@@ -143,57 +140,37 @@ $isDark = isset($_COOKIE['dark_mode']) && $_COOKIE['dark_mode'] === '1';
           <div class="input-group">
             <span class="input-group-text"><i class="bi bi-lock"></i></span>
             <input type="password" id="password" name="password" class="form-control"
-                   placeholder="At least 8 characters" required minlength="8">
-            <button type="button" class="btn btn-outline-secondary" id="togglePwd">
+                   placeholder="At least 8 characters" required minlength="8" autocomplete="new-password" data-strength-meter="strengthBar" aria-describedby="strengthBar">
+            <button type="button" class="btn btn-outline-secondary" id="togglePwd" data-password-toggle="password" aria-controls="password" aria-label="Show password" aria-pressed="false">
               <i class="bi bi-eye" id="eyeIcon"></i>
             </button>
           </div>
-          <div class="password-strength mt-1" id="strengthBar"></div>
+          <div class="password-strength mt-1" id="strengthBar" aria-live="polite"></div>
         </div>
 
         <div class="mb-4">
           <label for="confirm_password" class="form-label">Confirm Password <span class="text-danger">*</span></label>
           <div class="input-group">
-            <span class="input-group-text"><i class="bi bi-lock-fill"></i></span>
+            <span class="input-group-text"><i class="bi bi-lock"></i></span>
             <input type="password" id="confirm_password" name="confirm_password"
-                   class="form-control" placeholder="Re-enter password" required>
+                   class="form-control" placeholder="Re-enter password" required autocomplete="new-password" data-match="password">
           </div>
         </div>
 
-        <button type="submit" class="btn btn-primary w-100 py-2 mb-3">
-          <i class="bi bi-person-check me-2"></i> Create Account
+        <button type="submit" class="btn btn-primary w-100">
+          Create account <i class="bi bi-arrow-right" aria-hidden="true"></i>
         </button>
       </form>
+      <?php endif; ?>
 
-      <p class="text-center" style="font-size:.85rem;color:var(--text-muted);">
+      <p class="auth-footnote">
         Already have an account? <a href="<?= BASE_URL ?>/login.php" class="fw-600">Sign in</a>
       </p>
-    </div>
-  </div>
+    </section>
+  </main>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-<script>
-document.getElementById('togglePwd')?.addEventListener('click', function() {
-    const pw = document.getElementById('password');
-    const ic = document.getElementById('eyeIcon');
-    if (pw.type === 'password') { pw.type = 'text'; ic.className = 'bi bi-eye-slash'; }
-    else { pw.type = 'password'; ic.className = 'bi bi-eye'; }
-});
-
-// Password strength
-document.getElementById('password')?.addEventListener('input', function() {
-    const bar = document.getElementById('strengthBar');
-    const v   = this.value;
-    let s = 0;
-    if (v.length >= 8)  s++;
-    if (/[A-Z]/.test(v)) s++;
-    if (/[0-9]/.test(v)) s++;
-    if (/[^A-Za-z0-9]/.test(v)) s++;
-    const labels = ['','Weak','Fair','Good','Strong'];
-    const colors = ['','#dc3545','#ffc107','#0dcaf0','#198754'];
-    bar.innerHTML = s ? `<div style="height:4px;background:${colors[s]};border-radius:2px;width:${s*25}%;transition:width .3s;"></div><small style="color:${colors[s]};font-size:.7rem;">${labels[s]}</small>` : '';
-});
-</script>
+<script src="<?= ASSETS_URL ?>/js/main.js?v=<?= filemtime(BASE_PATH . '/assets/js/main.js') ?>"></script>
 </body>
 </html>

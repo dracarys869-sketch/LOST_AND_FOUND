@@ -67,7 +67,7 @@ $posted = static fn(string $key, string $default = ''): string => is_string($_PO
 include __DIR__ . '/../includes/header.php';
 include __DIR__ . '/../includes/sidebar_admin.php';
 ?>
-<div class="main-content">
+<main class="main-content" id="main-content" tabindex="-1">
   <div class="topbar">
     <button class="btn-icon me-2" id="sidebarToggle" aria-label="Toggle sidebar"><i class="bi bi-list"></i></button>
     <div class="topbar-title"><span class="text-muted-sm">Admin / Claims /</span> #<?= $claimId ?></div>
@@ -114,7 +114,7 @@ include __DIR__ . '/../includes/sidebar_admin.php';
         <div class="card mb-3">
           <div class="card-header"><span class="card-title"><i class="bi bi-shield-lock"></i> Private Ownership Evidence</span></div>
           <div class="card-body">
-            <h6>Claimant's proof</h6><p style="white-space:pre-wrap;"><?= e($claim['proof_description'] ?? 'No proof supplied.') ?></p>
+            <h3 class="h6">Claimant's proof</h3><p class="preserve-lines"><?= e($claim['proof_description'] ?? 'No proof supplied.') ?></p>
             <?php if ($claim['proof_photo']): ?>
               <a href="<?= e(photoUrl($claim['proof_photo'])) ?>" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary mb-3">View Private Supporting Photo</a>
             <?php endif; ?>
@@ -131,21 +131,21 @@ include __DIR__ . '/../includes/sidebar_admin.php';
                     ['Description', $submitted['description'] ?? null, $reference['description'] ?? null],
                     ['Unique characteristics', $submitted['unique_characteristics'] ?? null, $reference['unique_characteristics'] ?? null],
                 ] as [$title, $answer, $expected]): ?>
-                  <tr><th><?= e($title) ?></th><td style="white-space:pre-wrap;"><?= e($answer ?: 'Not supplied') ?></td><td style="white-space:pre-wrap;"><?= e($expected ?: 'Not recorded') ?></td></tr>
+                  <tr><th><?= e($title) ?></th><td class="preserve-lines"><?= e($answer ?: 'Not supplied') ?></td><td class="preserve-lines"><?= e($expected ?: 'Not recorded') ?></td></tr>
                 <?php endforeach; ?>
                 <?php foreach (ClaimFeatures::QUESTIONS as $key => $question): ?>
-                  <tr><th><?= e($question) ?></th><td style="white-space:pre-wrap;"><?= e($submitted['verification_answers'][$key] ?? '') ?></td><td style="white-space:pre-wrap;"><?= e($reference['verification_answers'][$key] ?? '') ?></td></tr>
+                  <tr><th><?= e($question) ?></th><td class="preserve-lines"><?= e($submitted['verification_answers'][$key] ?? '') ?></td><td class="preserve-lines"><?= e($reference['verification_answers'][$key] ?? '') ?></td></tr>
                 <?php endforeach; ?>
                 </tbody>
               </table>
             </div>
             <?php else: ?>
               <h6>Current found-item description (not a historical feature snapshot)</h6>
-              <p style="white-space:pre-wrap;"><?= e($claim['found_description']) ?></p>
+              <p class="preserve-lines"><?= e($claim['found_description']) ?></p>
             <?php endif; ?>
             <a href="<?= BASE_URL ?>/security/item_verification.php?item_id=<?= $claim['found_item_id'] ?>" class="btn btn-sm btn-outline-secondary">Inspect / Update Private Item Reference</a>
             <?php if (!empty($verification['security_notes'])): ?>
-              <hr><h6>Security staff's private review</h6><p style="white-space:pre-wrap;"><?= e($verification['security_notes']) ?></p>
+              <h3 class="h6 mt-4">Security staff's private review</h3><p class="preserve-lines"><?= e($verification['security_notes']) ?></p>
               <small class="text-muted"><?= e($verification['security_name']) ?> · <?= e($verification['security_reviewed_at']) ?></small>
             <?php endif; ?>
           </div>
@@ -166,8 +166,8 @@ include __DIR__ . '/../includes/sidebar_admin.php';
                 <textarea name="review_notes" id="publicNotes" class="form-control mb-2" rows="3" maxlength="2000"><?= e($posted('review_notes')) ?></textarea>
                 <p class="form-text">Keep correct verification answers and internal assessment details in the private evidence record.</p>
                 <div class="d-flex gap-2">
-                  <button name="decision" value="approved" class="btn btn-success"><i class="bi bi-check-circle me-1"></i>Approve Claim</button>
-                  <button name="decision" value="rejected" class="btn btn-outline-danger"><i class="bi bi-x-circle me-1"></i>Reject Claim</button>
+                  <button name="decision" value="approved" class="btn btn-primary" data-pending-label="Approving claim…"><i class="bi bi-check-circle me-1"></i>Approve Claim</button>
+                  <button name="decision" value="rejected" class="btn btn-outline-danger" data-pending-label="Rejecting claim…"><i class="bi bi-x-circle me-1"></i>Reject Claim</button>
                 </div>
               </form>
             <?php endif; ?>
@@ -203,7 +203,7 @@ include __DIR__ . '/../includes/sidebar_admin.php';
                 <input type="checkbox" class="form-check-input" name="independent_evidence" id="independentEvidence" value="1">
                 <label class="form-check-label small" for="independentEvidence">I checked at least one strong ownership identifier independently, and this label is not based on the model recommendation.</label>
               </div>
-              <button class="btn btn-primary btn-sm">Save Verification Record</button>
+              <button class="btn btn-outline-secondary btn-sm" data-pending-label="Saving verification…">Save Verification Record</button>
             </form>
             <p class="small text-muted mt-3 mb-0">Verification status: <?= e($verification['verification_status'] ?? 'unverified') ?><?= !empty($verification['verified_at']) ? ' · ' . e($verification['verified_at']) : '' ?></p>
             <?php if (!$assessment): ?><p class="small text-muted mt-2">This legacy claim remains excluded from model training because it has no submission-time snapshot.</p><?php endif; ?>
@@ -231,5 +231,5 @@ include __DIR__ . '/../includes/sidebar_admin.php';
       </div>
     </div>
   </div>
-</div>
+</main>
 <?php include __DIR__ . '/../includes/footer.php'; ?>

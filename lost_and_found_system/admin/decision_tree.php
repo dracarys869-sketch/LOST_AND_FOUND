@@ -49,7 +49,7 @@ $readinessProgress = min(100, (int)round($labeledTotal / max(1, ClaimTraining::M
 include __DIR__ . '/../includes/header.php';
 include __DIR__ . '/../includes/sidebar_admin.php';
 ?>
-<div class="main-content">
+<main class="main-content" id="main-content" tabindex="-1">
   <div class="topbar"><button class="btn-icon me-2" id="sidebarToggle" aria-label="Toggle sidebar"><i class="bi bi-list"></i></button><div class="topbar-title"><span class="text-muted-sm">Admin /</span> Decision Tree</div></div>
   <div class="content-area">
     <div class="page-header"><div><h1 class="page-title">Decision Tree — Training &amp; Evaluation</h1><p class="page-subtitle">A single CART classification tree for ownership claim recommendations.</p></div></div>
@@ -85,7 +85,7 @@ include __DIR__ . '/../includes/sidebar_admin.php';
           <div class="card-body">
             <p class="small">Fixed settings: maximum depth 5, minimum 2 samples per leaf. Approximately 80% training / 20% test, grouped by item, claimant, linked lost report, and duplicate submissions.</p>
             <p class="small">Old partition assignments persist on retraining. Test records never fit the saved tree. Minimum sample counts are readiness checks, not a guarantee of accuracy.</p>
-            <form method="POST"><?= csrfField() ?><input type="hidden" name="action" value="train"><button class="btn btn-primary" <?= !($overview['ready'] ?? false) ? 'disabled' : '' ?>>Train, Evaluate &amp; Activate</button></form>
+            <form method="POST" data-pending-label="Training and evaluating the model…"><?= csrfField() ?><input type="hidden" name="action" value="train"><button class="btn btn-primary" <?= !($overview['ready'] ?? false) ? 'disabled' : '' ?>>Train, Evaluate &amp; Activate</button></form>
             <?php if ($active): ?><form method="POST" class="mt-2"><?= csrfField() ?><input type="hidden" name="action" value="deactivate"><button class="btn btn-outline-secondary btn-sm">Deactivate Model</button></form><?php endif; ?>
             <p class="small text-muted mt-3 mb-0">No claims are approved and no items are released by training or prediction. Existing assessments retain their model version; use “Reassess” on a claim to apply the active tree to its frozen features.</p>
           </div>
@@ -120,5 +120,5 @@ include __DIR__ . '/../includes/sidebar_admin.php';
       <?php endif; ?>
     <?php endif; ?>
   </div>
-</div>
+</main>
 <?php include __DIR__ . '/../includes/footer.php'; ?>

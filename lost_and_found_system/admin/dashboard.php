@@ -35,8 +35,9 @@ $stats = [
 // ─── Monthly trend (last 6 months) ───────────────────────────
 $monthlyData = [];
 for ($i = 5; $i >= 0; $i--) {
-    $month   = date('Y-m', strtotime("-{$i} months"));
-    $label   = date('M Y', strtotime("-{$i} months"));
+    $monthStart = strtotime("first day of -{$i} months");
+    $month   = date('Y-m', $monthStart);
+    $label   = date('M Y', $monthStart);
     $lost    = db()->fetchOne('SELECT COUNT(*) AS c FROM lost_items  WHERE DATE_FORMAT(created_at,"%Y-%m") = ?', [$month])['c'] ?? 0;
     $found   = db()->fetchOne('SELECT COUNT(*) AS c FROM found_items WHERE DATE_FORMAT(created_at,"%Y-%m") = ?', [$month])['c'] ?? 0;
     $monthlyData[] = ['label' => $label, 'lost' => $lost, 'found' => $found];
@@ -81,43 +82,35 @@ include __DIR__ . '/../includes/header.php';
 include __DIR__ . '/../includes/sidebar_admin.php';
 ?>
 
-<div class="main-content">
-  <!-- Topbar -->
-  <div class="topbar">
-    <button class="btn-icon me-2" id="sidebarToggle" aria-label="Toggle sidebar">
-      <i class="bi bi-list"></i>
-    </button>
-    <div class="topbar-title">
-      <span class="text-muted-sm">Admin /</span> Dashboard
-    </div>
-    <div class="topbar-actions">
-      <div style="position:relative;">
-        <a href="<?= BASE_URL ?>/student/notifications.php" class="btn-icon" id="notifBtn">
-          <i class="bi bi-bell"></i>
-        </a>
-        <?php if ($notifCount > 0): ?>
-        <span class="badge-dot position-absolute top-0 end-0 translate-middle badge rounded-pill bg-danger"
-              style="font-size:.6rem;padding:.25em .4em;">
-          <?= $notifCount ?>
-        </span>
-        <?php endif; ?>
-      </div>
-      
-      
-    </div>
-  </div>
+<main class="main-content" id="main-content" tabindex="-1">
+  <?php include __DIR__ . '/../includes/topbar.php'; ?>
 
   <div class="content-area">
     <!-- Page Header -->
     <div class="page-header">
       <div>
-        <h1 class="page-title">Dashboard</h1>
-        <p class="page-subtitle">Overview of the Lost &amp; Found system — <?= date('l, F j, Y') ?></p>
+        <h1 class="page-title">Campus lost &amp; found</h1>
+        <p class="page-subtitle">Reports, ownership reviews, and returns · <?= date('l, F j, Y') ?></p>
       </div>
+      <a href="<?= BASE_URL ?>/admin/reports.php" class="btn btn-outline-secondary"><i class="bi bi-file-earmark-bar-graph" aria-hidden="true"></i> View reports</a>
     </div>
 
-    <!-- KPI Cards -->
-    <div class="row g-3 mb-4">
+    <section class="dashboard-banner" aria-labelledby="review-queue-title">
+      <div>
+        <span class="eyebrow">THE NEXT STEP IS YOURS</span>
+        <h2 id="review-queue-title"><?= $stats['pending_claims'] ? number_format((int)$stats['pending_claims']) . ' claim' . ((int)$stats['pending_claims'] === 1 ? '' : 's') . ' awaiting your review.' : 'Your review queue is up to date.' ?></h2>
+        <p><?= $stats['pending_claims'] ? 'Help an item find its owner. Review the evidence and record an ownership decision.' : 'New ownership claims will appear here. Keep track of reports and returns across campus.' ?></p>
+        <a href="<?= BASE_URL ?>/admin/claims.php?status=pending" class="btn btn-primary">Review claims <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+      </div>
+      <ol class="recovery-steps" aria-label="Review workflow">
+        <li><i class="bi bi-file-earmark-text" aria-hidden="true"></i><span><strong>Check the evidence</strong><small>Review identifying details</small></span></li>
+        <li><i class="bi bi-shield-check" aria-hidden="true"></i><span><strong>Verify ownership</strong><small>Record the final decision</small></span></li>
+        <li><i class="bi bi-bag-check" aria-hidden="true"></i><span><strong>Arrange the return</strong><small>Security handles collection</small></span></li>
+      </ol>
+    </section>
+
+    <!-- Live summary counts -->
+    <div class="row stats-grid mb-4">
       <?php
       $kpis = [
         ['icon'=>'bi-search',            'label'=>'Total Lost Reports',  'value'=>$stats['total_lost'],    'color'=>'orange', 'href'=>BASE_URL.'/admin/reports.php?type=lost'],
@@ -128,8 +121,9 @@ include __DIR__ . '/../includes/sidebar_admin.php';
         ['icon'=>'bi-check2-circle',     'label'=>'Items Released',      'value'=>$stats['released'],      'color'=>'teal',   'href'=>BASE_URL.'/admin/reports.php?type=released'],
       ];
       foreach ($kpis as $k): ?>
-      <div class="col-6 col-lg-4 col-xl-2 d-flex">
+      <div class="col-6 col-md-4 col-xl-2 d-flex">
         <a href="<?= $k['href'] ?>" class="stat-card <?= $k['color'] ?> text-decoration-none w-100">
+          <i class="bi bi-arrow-up-right stat-link-arrow" aria-hidden="true"></i>
           <div class="stat-icon <?= $k['color'] ?>"><i class="bi <?= $k['icon'] ?>"></i></div>
           <div class="stat-info">
             <div class="stat-value"><?= number_format((int)$k['value']) ?></div>
@@ -142,11 +136,11 @@ include __DIR__ . '/../includes/sidebar_admin.php';
 
     <div class="card mb-4">
       <div class="card-header">
-        <span class="card-title"><i class="bi bi-diagram-3"></i> Decision Tree — Ownership Claims</span>
-        <a href="<?= BASE_URL ?>/admin/decision_tree.php" class="btn btn-sm btn-outline-primary">Training &amp; Evaluation</a>
+        <h2 class="card-title">Recent ownership claims</h2>
+        <a href="<?= BASE_URL ?>/admin/decision_tree.php" class="text-link small">Decision Tree training &amp; evaluation</a>
       </div>
       <div class="card-body">
-        <p class="mb-2">Recommendations assist review; they are not proof of ownership. Only an administrator can approve or reject a claim.</p>
+        <p class="small mb-2">Review each claimant's evidence before recording an ownership decision.</p>
         <?php if (!$mlReady): ?>
         <div class="alert alert-warning mb-0">Setup required: run <code>php scripts/migrate_decision_tree.php</code>.</div>
         <?php elseif (!$activeTree): ?>
@@ -158,18 +152,17 @@ include __DIR__ . '/../includes/sidebar_admin.php';
       <?php if ($mlReady): ?>
       <div class="table-responsive">
         <table class="table table-hover mb-0">
-          <thead><tr><th>Claim ID</th><th>Item</th><th>Claimant</th><th>Classification</th><th>Matching / Conflicting Information</th><th>Status</th><th>Submitted</th><th></th></tr></thead>
+          <thead><tr><th scope="col">Item / claim</th><th scope="col">Claimant</th><th scope="col">Recommendation</th><th scope="col">Status</th><th scope="col">Submitted</th><th scope="col"><span class="visually-hidden">Action</span></th></tr></thead>
           <tbody>
           <?php foreach ($claimAssessments as $assessment): ?>
             <tr>
-              <td>#<?= $assessment['id'] ?></td><td><?= e($assessment['item_name']) ?></td><td><?= e($assessment['claimant_name']) ?></td>
+              <td><strong class="fw-600"><?= e($assessment['item_name']) ?></strong><div class="text-muted-sm">Claim #<?= (int)$assessment['id'] ?></div></td><td><?= e($assessment['claimant_name']) ?></td>
               <td><?= claimClassificationBadge($assessment['classification']) ?></td>
-              <td style="font-size:.78rem;max-width:300px;"><?= e(claimEvidenceSummary($assessment['evidence_json'])) ?></td>
-              <td><?= statusBadge($assessment['status']) ?></td><td style="white-space:nowrap;font-size:.78rem;"><?= formatDate($assessment['created_at'], 'M j, Y h:i A') ?></td>
-              <td><a href="<?= BASE_URL ?>/admin/claim_review.php?id=<?= $assessment['id'] ?>" class="btn btn-sm btn-outline-primary">Review</a></td>
+              <td><?= statusBadge($assessment['status']) ?></td><td class="text-nowrap"><?= formatDate($assessment['created_at'], 'M j, Y') ?></td>
+              <td><a href="<?= BASE_URL ?>/admin/claim_review.php?id=<?= $assessment['id'] ?>" class="btn btn-sm btn-outline-primary" aria-label="Review claim #<?= (int)$assessment['id'] ?>">Review <i class="bi bi-arrow-right" aria-hidden="true"></i></a></td>
             </tr>
           <?php endforeach; ?>
-          <?php if (!$claimAssessments): ?><tr><td colspan="8" class="text-center text-muted py-3">No claims submitted.</td></tr><?php endif; ?>
+          <?php if (!$claimAssessments): ?><tr><td colspan="6" class="text-center text-muted py-3">No claims submitted.</td></tr><?php endif; ?>
           </tbody>
         </table>
       </div>
@@ -182,12 +175,17 @@ include __DIR__ . '/../includes/sidebar_admin.php';
       <div class="col-lg-8">
         <div class="card h-100">
           <div class="card-header">
-            <span class="card-title"><i class="bi bi-bar-chart-line"></i> Monthly Trend (Last 6 Months)</span>
+            <h2 class="card-title">Monthly reports · last 6 months</h2>
           </div>
           <div class="card-body">
-            <div class="chart-container" style="height:240px;">
-              <canvas id="monthlyChart"></canvas>
+            <div class="chart-container">
+              <canvas id="monthlyChart" role="img" aria-label="Lost and found reports by month. Exact values are in the table below."></canvas>
             </div>
+            <details class="chart-data"><summary>View monthly report counts</summary>
+              <div class="table-responsive"><table class="table table-sm"><thead><tr><th scope="col">Month</th><th scope="col">Lost</th><th scope="col">Found</th></tr></thead><tbody>
+                <?php foreach ($monthlyData as $month): ?><tr><th scope="row"><?= e($month['label']) ?></th><td><?= (int)$month['lost'] ?></td><td><?= (int)$month['found'] ?></td></tr><?php endforeach; ?>
+              </tbody></table></div>
+            </details>
           </div>
         </div>
       </div>
@@ -196,12 +194,17 @@ include __DIR__ . '/../includes/sidebar_admin.php';
       <div class="col-lg-4">
         <div class="card h-100">
           <div class="card-header">
-            <span class="card-title"><i class="bi bi-pie-chart"></i> Lost by Category</span>
+            <h2 class="card-title">Lost reports by category</h2>
           </div>
-          <div class="card-body d-flex align-items-center justify-content-center">
-            <div class="chart-container" style="height:220px;width:100%;">
-              <canvas id="categoryChart"></canvas>
+          <div class="card-body">
+            <div class="chart-container">
+              <canvas id="categoryChart" role="img" aria-label="Lost reports by category. Exact values are in the table below."></canvas>
             </div>
+            <details class="chart-data"><summary>View category counts</summary>
+              <div class="table-responsive"><table class="table table-sm"><thead><tr><th scope="col">Category</th><th scope="col">Reports</th></tr></thead><tbody>
+                <?php foreach ($catStats as $category): ?><tr><th scope="row"><?= e($category['name']) ?></th><td><?= (int)$category['cnt'] ?></td></tr><?php endforeach; ?>
+              </tbody></table></div>
+            </details>
           </div>
         </div>
       </div>
@@ -231,18 +234,18 @@ include __DIR__ . '/../includes/sidebar_admin.php';
                 <tbody>
                   <?php foreach ($recentLost as $item): ?>
                   <tr>
-                    <td><code style="font-size:.75rem;"><?= e($item['report_number']) ?></code></td>
+                    <td><code><?= e($item['report_number']) ?></code></td>
                     <td>
-                      <div class="fw-600" style="font-size:.85rem;"><?= e($item['item_name']) ?></div>
-                      <div style="font-size:.72rem;color:var(--text-muted);"><?= e($item['category_name']) ?></div>
+                      <div class="fw-600"><?= e($item['item_name']) ?></div>
+                      <div class="text-muted-sm"><?= e($item['category_name']) ?></div>
                     </td>
-                    <td style="font-size:.82rem;"><?= e($item['reporter_name']) ?></td>
-                    <td style="font-size:.78rem;white-space:nowrap;"><?= formatDate($item['date_lost']) ?></td>
+                    <td><?= e($item['reporter_name']) ?></td>
+                    <td class="text-nowrap"><?= formatDate($item['date_lost']) ?></td>
                     <td><?= statusBadge($item['status']) ?></td>
                   </tr>
                   <?php endforeach; ?>
                   <?php if (empty($recentLost)): ?>
-                  <tr><td colspan="5" class="text-center py-4 text-muted">No reports yet.</td></tr>
+                  <tr><td colspan="5"><div class="empty-state py-3"><i class="bi bi-search"></i><h5>No lost reports yet</h5><p>Student reports will appear here.</p><a href="<?= BASE_URL ?>/admin/reports.php?type=lost" class="btn btn-outline-primary btn-sm">View lost items</a></div></td></tr>
                   <?php endif; ?>
                 </tbody>
               </table>
@@ -261,17 +264,17 @@ include __DIR__ . '/../includes/sidebar_admin.php';
           <div class="card-body p-0">
             <?php foreach ($recentLogs as $log): ?>
             <div class="d-flex align-items-center gap-2 px-3 py-2 border-bottom">
-              <div class="stat-icon green" style="width:30px;height:30px;font-size:.75rem;flex-shrink:0;">
+              <div class="stat-icon icon-sm">
                 <i class="bi bi-activity"></i>
               </div>
-              <div style="flex:1;min-width:0;">
-                <div style="font-size:.78rem;font-weight:600;"><?= e(str_replace('_',' ',$log['action'])) ?></div>
-                <div style="font-size:.72rem;color:var(--text-muted);"><?= e($log['user_name'] ?? 'System') ?> · <?= timeAgo($log['created_at']) ?></div>
+              <div class="flex-1">
+                <div class="small fw-600"><?= e(str_replace('_',' ',$log['action'])) ?></div>
+                <div class="text-muted-sm"><?= e($log['user_name'] ?? 'System') ?> · <?= timeAgo($log['created_at']) ?></div>
               </div>
             </div>
             <?php endforeach; ?>
             <?php if (empty($recentLogs)): ?>
-            <div class="p-3 text-center text-muted" style="font-size:.85rem;">No activity logged yet.</div>
+            <div class="p-3 text-center text-muted-sm">No activity logged yet.</div>
             <?php endif; ?>
           </div>
         </div>
@@ -279,7 +282,7 @@ include __DIR__ . '/../includes/sidebar_admin.php';
     </div>
 
   </div><!-- /.content-area -->
-</div><!-- /.main-content -->
+</main>
 
 <?php
 $monthLabels  = json_encode(array_column($monthlyData, 'label'));
@@ -295,8 +298,8 @@ new Chart(document.getElementById('monthlyChart'), {
     data: {
         labels: {$monthLabels},
         datasets: [
-          { label:'Lost',  data:{$monthLost},  backgroundColor:'rgba(253,126,20,.7)', borderRadius:6 },
-          { label:'Found', data:{$monthFound}, backgroundColor:'rgba(45,106,79,.7)',  borderRadius:6 },
+          { label:'Lost', data:{$monthLost}, backgroundColor:chartPalette().neutral, lafTone:'neutral', borderRadius:4 },
+          { label:'Found', data:{$monthFound}, backgroundColor:chartPalette().accent, lafTone:'accent', borderRadius:4 },
         ]
     },
     options: {
@@ -306,19 +309,17 @@ new Chart(document.getElementById('monthlyChart'), {
     }
 });
 
-// Category pie chart
+// Horizontal bars keep category names readable without a color-coded legend.
 new Chart(document.getElementById('categoryChart'), {
-    type: 'doughnut',
+    type: 'bar',
     data: {
         labels: {$catLabels},
-        datasets:[{ data:{$catValues},
-            backgroundColor:['#065F46','#059669','#10B981','#34D399','#A7F3D0','#D1FAE5','#FCE7F3','#044030'],
-            borderWidth:2, borderColor:'var(--surface)'
-        }]
+        datasets:[{ label:'Lost reports', data:{$catValues}, backgroundColor:chartPalette().neutral, lafTone:'neutral', borderRadius:4 }]
     },
     options: {
-        responsive:true, maintainAspectRatio:false,
-        plugins:{ legend:{ position:'bottom', labels:{ font:{size:11}, boxWidth:12 } } }
+        indexAxis:'y', responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ display:false } },
+        scales:{ x:{ beginAtZero:true, ticks:{ precision:0 } }, y:{ grid:{ display:false } } }
     }
 });
 </script>

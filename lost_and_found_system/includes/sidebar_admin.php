@@ -25,13 +25,13 @@ $pendingClaims   = db()->fetchOne('SELECT COUNT(*) AS c FROM claims WHERE status
 $pendingMatches  = db()->fetchOne('SELECT COUNT(*) AS c FROM matches WHERE status="pending"')['c'] ?? 0;
 ?>
 
-<nav class="sidebar" id="sidebar">
+<nav class="sidebar" id="sidebar" aria-label="Administrator navigation">
   <!-- Brand -->
   <div class="sidebar-brand">
     <div class="sidebar-brand-icon"><img src="<?= ASSETS_URL ?>/images/lost-found-logo.png" alt="Lost and Found logo"></div>
     <div class="sidebar-brand-text">
-      <div class="sidebar-brand-name"><?= e($schoolName) ?></div>
-      <span class="sidebar-brand-sub">Lost &amp; Found Portal</span>
+      <div class="sidebar-brand-name">Campus Lost &amp; Found</div>
+      <span class="sidebar-brand-sub"><?= e($schoolName) ?></span>
     </div>
     <button type="button" class="sidebar-close d-lg-none" id="sidebarClose" aria-label="Close navigation">
       <i class="bi bi-x-lg"></i>
@@ -40,22 +40,21 @@ $pendingMatches  = db()->fetchOne('SELECT COUNT(*) AS c FROM matches WHERE statu
 
   <!-- Nav -->
   <ul class="sidebar-nav list-unstyled">
-    <span class="nav-section-label">Overview</span>
     <?= adminNavLink(BASE_URL.'/admin/dashboard.php',   'bi-grid-1x2',       'Dashboard',   'dashboard',   $activePage) ?>
 
-    <span class="nav-section-label">Items</span>
+    <li class="nav-section-label">Items &amp; claims</li>
     <?= adminNavLink(BASE_URL.'/admin/reports.php?type=lost',  'bi-search',   'Lost Items',  'lost',        $activePage) ?>
     <?= adminNavLink(BASE_URL.'/admin/reports.php?type=found', 'bi-box-seam', 'Found Items', 'found',       $activePage) ?>
     <?= adminNavLink(BASE_URL.'/admin/reports.php?type=match', 'bi-link-45deg','Matches',    'matches',     $activePage, (int)$pendingMatches) ?>
     <?= adminNavLink(BASE_URL.'/admin/claims.php',      'bi-file-earmark-check','Claims',   'claims',      $activePage, (int)$pendingClaims) ?>
     <?= adminNavLink(BASE_URL.'/admin/decision_tree.php', 'bi-diagram-3', 'Decision Tree', 'decision_tree', $activePage) ?>
 
-    <span class="nav-section-label">Management</span>
+    <li class="nav-section-label">Management</li>
     <?= adminNavLink(BASE_URL.'/admin/users.php',       'bi-people',         'Users',       'users',       $activePage) ?>
     <?= adminNavLink(BASE_URL.'/admin/categories.php',  'bi-tags',           'Categories',  'categories',  $activePage) ?>
     <?= adminNavLink(BASE_URL.'/admin/locations.php',   'bi-geo-alt',        'Locations',   'locations',   $activePage) ?>
 
-    <span class="nav-section-label">Reports & Logs</span>
+    <li class="nav-section-label">Administration</li>
     <?= adminNavLink(BASE_URL.'/admin/reports.php',     'bi-file-earmark-bar-graph','Reports','reports',   $activePage) ?>
     <?= adminNavLink(BASE_URL.'/admin/audit_logs.php',  'bi-journal-text',   'Audit Logs',  'audit',       $activePage) ?>
     <?= adminNavLink(BASE_URL.'/admin/settings.php',    'bi-gear',           'Settings',    'settings',    $activePage) ?>
@@ -64,10 +63,10 @@ $pendingMatches  = db()->fetchOne('SELECT COUNT(*) AS c FROM matches WHERE statu
   <!-- Footer -->
   <div class="sidebar-footer">
     <div class="d-flex align-items-center justify-content-between px-2 mb-3">
-      <span style="font-size: 0.85rem; color: var(--sidebar-text); font-weight: 500;">
-        <i class="bi bi-moon-stars me-2"></i>Dark Mode
+      <span class="text-muted-sm">
+        <i class="bi bi-moon me-2" aria-hidden="true"></i>Dark mode
       </span>
-      <button class="dark-toggle <?= $isDark ? 'active' : '' ?>" id="darkToggle" aria-label="Toggle dark mode"></button>
+      <button type="button" class="dark-toggle <?= $isDark ? 'active' : '' ?>" id="darkToggle" role="switch" aria-checked="<?= $isDark ? 'true' : 'false' ?>" aria-label="Dark mode"></button>
     </div>
     <div class="sidebar-account">
       <div class="sidebar-avatar"><?= userInitials($u['name']) ?></div>

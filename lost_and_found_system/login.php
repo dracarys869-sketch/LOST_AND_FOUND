@@ -8,7 +8,7 @@ require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/functions.php';
 
 // Already logged in?
-if (isLoggedIn()) { redirect(dashboardUrl()); }
+if (isLoggedIn()) { redirect(safeLoginRedirect($_GET['redirect'] ?? null, currentUser()['role'])); }
 
 $error = '';
 
@@ -48,12 +48,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             loginUser($user);
 
             if ($remember) {
-                $token = bin2hex(random_bytes(32));
-                db()->execute('UPDATE users SET remember_token = ? WHERE id = ?', [$token, $user['id']]);
-                setcookie('remember_token', $token, time() + (30 * 86400), '/', '', false, true);
+                rememberUser((int)$user['id']);
+            } else {
+                forgetRememberedUser((int)$user['id']);
             }
 
-            $redirect = $_GET['redirect'] ?? dashboardUrl();
+            $redirect = safeLoginRedirect($_GET['redirect'] ?? null, $user['role']);
             redirect($redirect);
         }
     }
@@ -67,6 +67,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $timeout = isset($_GET['timeout']);
 $isDark  = isset($_COOKIE['dark_mode']) && $_COOKIE['dark_mode'] === '1';
 $captchaQuestion = (int)$_SESSION['login_captcha_a'] . ' + ' . (int)$_SESSION['login_captcha_b'];
+$schoolName = getSetting('school_name', APP_NAME);
+$flash = getFlash();
 ?>
 <!DOCTYPE html>
 <html lang="en" <?= $isDark ? 'data-theme="dark"' : '' ?>>
@@ -79,50 +81,45 @@ $captchaQuestion = (int)$_SESSION['login_captcha_a'] . ' + ' . (int)$_SESSION['l
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="<?= ASSETS_URL ?>/css/style.css?v=<?= filemtime(BASE_PATH . '/assets/css/style.css') ?>">
 </head>
-<body><div class="modern-auth-wrapper">
-  <!-- Glowing abstract background blobs -->
-  <div class="blob blob-1"></div>
-  <div class="blob blob-2"></div>
-  <div class="blob blob-3"></div>
-
-  <div class="container" style="position: relative; z-index: 10;">
-    <div class="row align-items-center justify-content-center g-5">
-      <!-- Left side info (visible on large screens) -->
-      <div class="col-lg-6 d-none d-lg-block text-lg-start auth-info-col">
-        <div class="auth-info-content">
-          <h2 class="fw-800 text-primary mb-2 auth-info-title"><?= e(getSetting('school_name', 'School')) ?></h2>
-          <p class="auth-info-desc">Lost &amp; Found Portal — A modern, automated system to easily report, match, and reclaim lost items on campus.</p>
-
-        </div>
-      </div>
-
-      <!-- Right side card -->
-      <div class="col-lg-5 col-md-8 col-sm-10 d-flex justify-content-center">
-        <div class="card border-0 shadow-lg p-4 p-md-5 auth-card" style="width: 100%;">
-          <div class="mb-4 d-flex align-items-center justify-content-between" style="position: relative;">
-            <a href="<?= BASE_URL ?>/" class="btn btn-icon text-primary bg-transparent opacity-75 hover-opacity-100 p-0 auth-back-btn" 
-               title="Back to Public Feed">
-              <i class="bi bi-arrow-left-circle"></i>
-            </a>
-            <div class="w-100 text-center">
-              <h1 class="auth-form-title fw-800 text-primary" style="font-size: 1.6rem; margin-bottom: 0.25rem; margin-top: 0.25rem;">Welcome Back</h1>
-              <p class="text-muted-sm mb-0" style="color: var(--text-muted) !important; font-size: 0.85rem;">Sign in to your portal to continue</p>
-            </div>
+<body>
+<a class="skip-link" href="#main-content">Skip to sign in</a>
+<div class="auth-page">
+  <header><a href="<?= BASE_URL ?>/" class="auth-brand"><img src="<?= ASSETS_URL ?>/images/lost-found-logo.png" alt="" width="40" height="40"><span class="auth-brand-login"><strong>Campus Lost &amp; Found</strong><small><?= e($schoolName) ?></small></span></a></header>
+  <main class="auth-shell" id="main-content" tabindex="-1">
+    <aside class="auth-info" aria-label="How the portal works">
+      <span class="eyebrow">A LITTLE HELP FROM YOUR CAMPUS</span>
+      <h2>Good things find their way back.</h2>
+      <p>Sign in to keep track of your reports and get one step closer to finding what's missing.</p>
+      <ol class="auth-steps">
+        <li><span><strong>Tell us what went missing</strong>A few details help your item stand out.</span></li>
+        <li><span><strong>Keep an eye on your matches</strong>Get updates when a similar item is found.</span></li>
+        <li><span><strong>Make it a happy return</strong>Verify ownership and collect your item.</span></li>
+      </ol>
+    </aside>
+    <section class="auth-card" aria-labelledby="auth-title">
+          <a href="<?= BASE_URL ?>/" class="auth-back-link"><i class="bi bi-arrow-left" aria-hidden="true"></i> Back to item reports</a>
+          <div class="auth-heading">
+            <h1 class="auth-form-title" id="auth-title">Welcome back</h1>
+            <p class="auth-form-sub">Sign in with your student or staff account.</p>
           </div>
 
+          <?php if ($flash): ?>
+          <div class="alert alert-<?= e($flash['type']) ?>" role="status"><?= e($flash['message']) ?></div>
+          <?php endif; ?>
+
           <?php if ($timeout): ?>
-          <div class="alert alert-warning border-0 bg-warning bg-opacity-10 text-warning mb-3" style="font-size:0.8rem; border-radius: 8px;">
+          <div class="alert alert-warning mb-3" role="status">
             <i class="bi bi-clock me-2"></i> Your session expired. Please sign in again.
           </div>
           <?php endif; ?>
 
           <?php if ($error): ?>
-          <div class="alert alert-danger border-0 bg-danger bg-opacity-10 text-danger mb-3" style="font-size:0.8rem; border-radius: 8px;">
+          <div class="alert alert-danger mb-3" role="alert">
             <i class="bi bi-exclamation-circle me-2"></i> <?= e($error) ?>
           </div>
           <?php endif; ?>
 
-          <form method="POST" action="" novalidate id="loginForm">
+          <form method="POST" action="" novalidate id="loginForm" data-pending-label="Signing in…">
             <?= csrfField() ?>
 
             <div class="mb-3">
@@ -132,7 +129,7 @@ $captchaQuestion = (int)$_SESSION['login_captcha_a'] . ' + ' . (int)$_SESSION['l
                 <input type="email" id="email" name="email"
                        class="form-control border-start-0" placeholder="you@school.edu"
                        value="<?= e($_POST['email'] ?? '') ?>"
-                       required autocomplete="email">
+                       required autocomplete="username" maxlength="150" autocapitalize="none" spellcheck="false">
               </div>
             </div>
 
@@ -143,8 +140,8 @@ $captchaQuestion = (int)$_SESSION['login_captcha_a'] . ' + ' . (int)$_SESSION['l
                 <input type="password" id="password" name="password"
                        class="form-control border-start-0 border-end-0" placeholder="Enter your password"
                        required autocomplete="current-password">
-                <button type="button" class="btn btn-outline-secondary border-start-0 bg-transparent text-muted" id="togglePwd"
-                        data-bs-toggle="tooltip" title="Show/hide password" style="border: 1.5px solid var(--border); border-left: none !important;">
+                <button type="button" class="btn btn-outline-secondary border-start-0" id="togglePwd"
+                        data-password-toggle="password" aria-controls="password" aria-label="Show password" aria-pressed="false">
                   <i class="bi bi-eye" id="eyeIcon"></i>
                 </button>
               </div>
@@ -154,50 +151,37 @@ $captchaQuestion = (int)$_SESSION['login_captcha_a'] . ' + ' . (int)$_SESSION['l
               <label for="captcha" class="form-label fw-600">Security Check</label>
               <div class="input-group">
                 <span class="input-group-text border-end-0"><i class="bi bi-calculator"></i></span>
-                <span class="input-group-text captcha-question"><?= e($captchaQuestion) ?> =</span>
+                <span class="input-group-text captcha-question" id="captchaQuestion"><?= e($captchaQuestion) ?> =</span>
                 <input type="text" id="captcha" name="captcha"
                        class="form-control border-start-0" placeholder="Answer"
-                       inputmode="numeric" pattern="[0-9]*" required autocomplete="off">
+                       inputmode="numeric" pattern="[0-9]+" maxlength="2" required autocomplete="off" aria-describedby="captchaQuestion">
               </div>
             </div>
 
-            <div class="d-flex align-items-center justify-content-between mb-4">
+            <div class="auth-options">
               <div class="form-check">
-                <input type="checkbox" class="form-check-input" id="remember_me" name="remember_me">
-                <label class="form-check-label" for="remember_me" style="font-size:.82rem; color: var(--text-muted);">Remember me</label>
+                <input type="checkbox" class="form-check-input" id="remember_me" name="remember_me" <?= !empty($_POST['remember_me']) ? 'checked' : '' ?>>
+                <label class="form-check-label" for="remember_me">Remember me for 30 days</label>
               </div>
-              <a href="<?= BASE_URL ?>/forgot_password.php" class="text-decoration-none fw-600" style="font-size:.82rem; color: var(--primary);">Forgot password?</a>
+              <a href="<?= BASE_URL ?>/forgot_password.php" class="text-link">Forgot password?</a>
             </div>
 
-            <button type="submit" class="btn btn-primary w-100 py-2 mb-3 fw-600" id="loginBtn">
-              <i class="bi bi-box-arrow-in-right me-2"></i> Sign In
+            <button type="submit" class="btn btn-primary w-100" id="loginBtn">
+              Sign in <i class="bi bi-arrow-right" aria-hidden="true"></i>
             </button>
           </form>
 
           <?php if (getSetting('allow_registration', true)): ?>
-          <p class="text-center mb-0" style="font-size:.85rem;color: var(--text-muted);">
+          <p class="auth-footnote">
             Don't have an account?
-            <a href="<?= BASE_URL ?>/register.php" class="fw-600 text-decoration-none">Register as Student</a>
+            <a href="<?= BASE_URL ?>/register.php">Create a student account</a>
           </p>
           <?php endif; ?>
-        </div>
-      </div>
-    </div>
-  </div>
+    </section>
+  </main>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-<script>
-// Show/hide password
-document.getElementById('togglePwd')?.addEventListener('click', function() {
-    const pw  = document.getElementById('password');
-    const eye = document.getElementById('eyeIcon');
-    if (pw.type === 'password') { pw.type = 'text';     eye.className = 'bi bi-eye-slash'; }
-    else                        { pw.type = 'password'; eye.className = 'bi bi-eye'; }
-});
-
-// Tooltips
-document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
-</script>
+<script src="<?= ASSETS_URL ?>/js/main.js?v=<?= filemtime(BASE_PATH . '/assets/js/main.js') ?>"></script>
 </body>
 </html>

@@ -13,7 +13,7 @@ require_once __DIR__ . '/../includes/notifications.php';
 
 requireRole('student', 'admin');
 
-$type   = sanitize($_GET['type'] ?? 'lost');
+$type   = ($_GET['type'] ?? '') === 'found' ? 'found' : 'lost';
 $search = sanitize($_GET['search'] ?? '');
 $status = sanitize($_GET['status'] ?? '');
 $page   = max(1, (int)($_GET['page'] ?? 1));
@@ -44,7 +44,7 @@ include __DIR__ . '/../includes/header.php';
 include __DIR__ . '/../includes/sidebar_student.php';
 ?>
 
-<div class="main-content">
+<main class="main-content" id="main-content" tabindex="-1">
   <div class="topbar">
     <button class="btn-icon me-2" id="sidebarToggle"><i class="bi bi-list"></i></button>
     <div class="topbar-title"><span class="text-muted-sm">Student /</span> My Reports</div>
@@ -54,19 +54,19 @@ include __DIR__ . '/../includes/sidebar_student.php';
   </div>
   <div class="content-area">
     <div class="page-header">
-      <div><h1 class="page-title">My Reports</h1><p class="page-subtitle">All reports you have submitted.</p></div>
+      <div><h1 class="page-title">My reports</h1><p class="page-subtitle">Check an item's status or find a previous report.</p></div>
       <div class="d-flex gap-2">
-        <a href="<?= BASE_URL ?>/student/lost_items.php" class="btn btn-outline-primary btn-sm">
+        <a href="<?= BASE_URL ?>/student/lost_items.php" class="btn <?= $type === 'found' ? 'btn-outline-secondary' : 'btn-primary' ?>">
           <i class="bi bi-plus me-1"></i> Report Lost
         </a>
-        <a href="<?= BASE_URL ?>/student/found_items.php" class="btn btn-primary btn-sm">
+        <a href="<?= BASE_URL ?>/student/found_items.php" class="btn <?= $type === 'found' ? 'btn-primary' : 'btn-outline-secondary' ?>">
           <i class="bi bi-plus me-1"></i> Report Found
         </a>
       </div>
     </div>
 
     <!-- Type Tabs -->
-    <ul class="nav nav-pills mb-3" style="gap:.5rem;">
+    <ul class="nav nav-pills mb-3">
       <li class="nav-item"><a class="nav-link <?= $type==='lost'?'active':'' ?>" href="?type=lost"><i class="bi bi-search me-1"></i>Lost Items</a></li>
       <li class="nav-item"><a class="nav-link <?= $type==='found'?'active':'' ?>" href="?type=found"><i class="bi bi-box-seam me-1"></i>Found Items</a></li>
     </ul>
@@ -77,9 +77,9 @@ include __DIR__ . '/../includes/sidebar_student.php';
         <input type="hidden" name="type" value="<?= e($type) ?>">
         <div class="search-bar flex-grow-1">
           <i class="bi bi-search"></i>
-          <input type="text" name="search" class="form-control" placeholder="Search item name…" value="<?= e($search) ?>">
+          <input type="search" name="search" class="form-control" aria-label="Search item name" placeholder="Search item name…" value="<?= e($search) ?>">
         </div>
-        <select name="status" class="form-select" style="max-width:160px;">
+        <select name="status" class="form-select" aria-label="Filter by status">
           <option value="">All Status</option>
           <?php $statuses = $type==='lost' ? ['pending','active','matched','claimed','closed'] : ['pending','active','matched','claimed','released'];
                 foreach ($statuses as $s): ?>
@@ -110,18 +110,18 @@ include __DIR__ . '/../includes/sidebar_student.php';
             <tbody>
               <?php foreach ($pager['rows'] as $item): ?>
               <tr>
-                <td data-label="Report #"><code style="font-size:.72rem;"><?= e($item['report_number']) ?></code></td>
+                <td data-label="Report #"><code><?= e($item['report_number']) ?></code></td>
                 <td data-label="Item">
-                  <div class="fw-600" style="font-size:.85rem;"><?= e($item['item_name']) ?></div>
+                  <div class="fw-600"><?= e($item['item_name']) ?></div>
                   <?php if ($item['brand'] || $item['color']): ?>
-                  <div style="font-size:.72rem;color:var(--text-muted);">
+                  <div class="text-muted-sm">
                     <?= e(implode(' · ', array_filter([$item['brand'] ?? '', $item['color'] ?? '']))) ?>
                   </div>
                   <?php endif; ?>
                 </td>
-                <td data-label="Category" style="font-size:.8rem;"><?= e($item['cat']) ?></td>
-                <td data-label="Location" style="font-size:.8rem;"><?= e($item['loc']) ?></td>
-                <td data-label="Date" style="font-size:.8rem;white-space:nowrap;"><?= formatDate($type==='lost'?$item['date_lost']:$item['date_found']) ?></td>
+                <td data-label="Category"><?= e($item['cat']) ?></td>
+                <td data-label="Location"><?= e($item['loc']) ?></td>
+                <td data-label="Date" class="text-nowrap"><?= formatDate($type==='lost'?$item['date_lost']:$item['date_found']) ?></td>
                 <td data-label="Status"><?= statusBadge($item['status']) ?></td>
                 <?php if ($type==='found'): ?>
                 <td data-label="QR">
@@ -131,11 +131,11 @@ include __DIR__ . '/../includes/sidebar_student.php';
                     <i class="bi bi-qr-code"></i>
                   </a>
                   <?php else: ?>
-                  <span class="text-muted" style="font-size:.75rem;">—</span>
+                  <span class="text-muted">—</span>
                   <?php endif; ?>
                 </td>
                 <?php endif; ?>
-                <td data-label="Submitted" style="font-size:.75rem;white-space:nowrap;"><?= timeAgo($item['created_at']) ?></td>
+                <td data-label="Submitted" class="text-nowrap"><?= timeAgo($item['created_at']) ?></td>
               </tr>
               <?php endforeach; ?>
               <?php if (empty($pager['rows'])): ?>
@@ -143,10 +143,10 @@ include __DIR__ . '/../includes/sidebar_student.php';
                 <td colspan="<?= $type==='found'?8:7 ?>">
                   <div class="empty-state py-4">
                     <i class="bi bi-inbox"></i>
-                    <h5>No <?= $type ?> reports yet</h5>
-                    <p>Submit your first report to get started.</p>
-                    <a href="<?= BASE_URL ?>/student/<?= $type ?>_items.php" class="btn btn-primary btn-sm">
-                      Report <?= ucfirst($type) ?> Item
+                    <h3><?= $search !== '' || $status !== '' ? 'No reports match your filters' : 'No ' . $type . ' reports yet' ?></h3>
+                    <p><?= $search !== '' || $status !== '' ? 'Try another item name or clear the filters to see your reports.' : 'Your submitted reports and their status will appear here.' ?></p>
+                    <a href="<?= $search !== '' || $status !== '' ? '?type=' . $type : BASE_URL . '/student/' . $type . '_items.php' ?>" class="text-link">
+                      <?= $search !== '' || $status !== '' ? 'Clear filters' : 'Report ' . ucfirst($type) . ' Item' ?>
                     </a>
                   </div>
                 </td>
@@ -164,6 +164,6 @@ include __DIR__ . '/../includes/sidebar_student.php';
       <?php endif; ?>
     </div>
   </div>
-</div>
+</main>
 
 <?php include __DIR__ . '/../includes/footer.php'; ?>

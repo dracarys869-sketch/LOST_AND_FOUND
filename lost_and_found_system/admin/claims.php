@@ -48,13 +48,17 @@ $params = [];
 if ($statusFilter) { $sql .= ' AND c.status=?'; $params[] = $statusFilter; }
 $sql .= ' ORDER BY c.created_at DESC';
 $pager = paginate($sql, $params, $page);
+$nextClaim = null;
+foreach ($pager['rows'] as $listedClaim) {
+    if ($listedClaim['status'] === 'pending') { $nextClaim = $listedClaim; break; }
+}
 
 $extraHead = '<script>const BASE_URL="' . BASE_URL . '";</script>';
 include __DIR__ . '/../includes/header.php';
 include __DIR__ . '/../includes/sidebar_admin.php';
 ?>
 
-<div class="main-content">
+<main class="main-content" id="main-content" tabindex="-1">
   <div class="topbar">
     <button class="btn-icon me-2" id="sidebarToggle"><i class="bi bi-list"></i></button>
     <div class="topbar-title"><span class="text-muted-sm">Admin /</span> Claims</div>
@@ -65,15 +69,18 @@ include __DIR__ . '/../includes/sidebar_admin.php';
   <div class="content-area">
     <div class="page-header">
       <div><h1 class="page-title">Claims Management</h1><p class="page-subtitle">Review ownership evidence and Decision Tree recommendations before making the final decision.</p></div>
-      <a href="<?= BASE_URL ?>/admin/decision_tree.php" class="btn btn-outline-primary btn-sm"><i class="bi bi-diagram-3 me-1"></i>Decision Tree</a>
+      <div class="action-row">
+        <?php if ($nextClaim): ?><a href="<?= BASE_URL ?>/admin/claim_review.php?id=<?= (int)$nextClaim['id'] ?>" class="btn btn-primary">Review next claim <i class="bi bi-arrow-right" aria-hidden="true"></i></a><?php endif; ?>
+        <a href="<?= BASE_URL ?>/admin/decision_tree.php" class="text-link small">Decision Tree</a>
+      </div>
     </div>
 
     <!-- Status filter pills -->
-    <div class="d-flex gap-2 mb-3 flex-wrap">
+    <nav class="filter-tabs" aria-label="Filter claims by status">
       <?php foreach ([''=> 'All','pending'=>'Pending','approved'=>'Approved','rejected'=>'Rejected'] as $v=>$l): ?>
-      <a href="?status=<?= $v ?>" class="btn btn-sm <?= $statusFilter===$v?'btn-primary':'btn-outline-secondary' ?>"><?= $l ?></a>
+      <a href="?status=<?= $v ?>" class="btn btn-sm btn-outline-secondary <?= $statusFilter===$v?'active':'' ?>" <?= $statusFilter===$v?'aria-current="page"':'' ?>><?= $l ?></a>
       <?php endforeach; ?>
-    </div>
+    </nav>
 
     <div class="card">
       <div class="card-header">
@@ -88,27 +95,27 @@ include __DIR__ . '/../includes/sidebar_admin.php';
               <tr>
                 <td data-label="#">#<?= $claim['id'] ?></td>
                 <td data-label="Item">
-                  <div class="fw-600" style="font-size:.85rem;"><?= e($claim['item_name']) ?></div>
-                  <code style="font-size:.7rem;"><?= e($claim['found_rn']) ?></code>
+                  <div class="fw-600"><?= e($claim['item_name']) ?></div>
+                  <code><?= e($claim['found_rn']) ?></code>
                 </td>
                 <td data-label="Claimant">
-                  <div style="font-size:.83rem;font-weight:600;"><?= e($claim['claimant_name']) ?></div>
-                  <div style="font-size:.73rem;color:var(--text-muted);"><?= e($claim['claimant_email']) ?></div>
+                  <div class="fw-600"><?= e($claim['claimant_name']) ?></div>
+                  <div class="text-muted-sm"><?= e($claim['claimant_email']) ?></div>
                   <?php if ($claim['student_id']): ?>
-                  <div style="font-size:.72rem;color:var(--text-light);">ID: <?= e($claim['student_id']) ?></div>
+                  <div class="text-muted-sm">ID: <?= e($claim['student_id']) ?></div>
                   <?php endif; ?>
                 </td>
-                <td data-label="Decision Tree" style="font-size:.8rem;max-width:300px;">
+                <td data-label="Decision Tree" class="table-note">
                   <?= claimClassificationBadge($claim['classification']) ?>
                   <div class="text-muted mt-1"><?= e(claimEvidenceSummary($claim['evidence_json'])) ?></div>
                   <?php if ($claim['prediction_reason']): ?><div class="mt-1"><?= e($claim['prediction_reason']) ?></div><?php endif; ?>
                 </td>
                 <td data-label="Status"><?= statusBadge($claim['status']) ?></td>
-                <td data-label="Submitted" style="font-size:.78rem;white-space:nowrap;"><?= timeAgo($claim['created_at']) ?></td>
+                <td data-label="Submitted" class="text-nowrap"><?= timeAgo($claim['created_at']) ?></td>
                 <td data-label="Actions">
                   <a class="btn btn-sm btn-outline-primary" href="<?= BASE_URL ?>/admin/claim_review.php?id=<?= $claim['id'] ?>">Review</a>
                   <?php if ($claim['status'] !== 'pending'): ?>
-                  <span style="font-size:.75rem;color:var(--text-muted);">by <?= e($claim['reviewer_name'] ?? '—') ?></span>
+                  <span class="text-muted-sm">by <?= e($claim['reviewer_name'] ?? '—') ?></span>
                   <?php endif; ?>
                 </td>
               </tr>
@@ -128,6 +135,6 @@ include __DIR__ . '/../includes/sidebar_admin.php';
       <?php endif; ?>
     </div>
   </div>
-</div>
+</main>
 
 <?php include __DIR__ . '/../includes/footer.php'; ?>

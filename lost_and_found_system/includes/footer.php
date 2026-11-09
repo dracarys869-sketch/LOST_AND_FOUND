@@ -5,7 +5,7 @@
 <!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <!-- Main JS -->
-<script src="<?= ASSETS_URL ?>/js/main.js"></script>
+<script src="<?= ASSETS_URL ?>/js/main.js?v=<?= filemtime(BASE_PATH . '/assets/js/main.js') ?>"></script>
 
 <?php if (isset($extraScripts)) echo $extraScripts; ?>
 </body>

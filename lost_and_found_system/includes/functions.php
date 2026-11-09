@@ -9,12 +9,13 @@ require_once __DIR__ . '/../config/database.php';
 // ─── Report Number Generator ─────────────────────────────────
 function generateReportNumber(string $prefix, string $table): string
 {
+    if (!in_array($table, ['lost_items', 'found_items'], true)) throw new InvalidArgumentException('Invalid report table.');
     $year = date('Y');
     $row  = db()->fetchOne(
-        "SELECT COUNT(*) AS cnt FROM {$table} WHERE YEAR(created_at) = ?",
-        [$year]
+        "SELECT MAX(CAST(SUBSTRING_INDEX(report_number, '-', -1) AS UNSIGNED)) AS last_number FROM {$table} WHERE report_number LIKE ?",
+        [$prefix . '-' . $year . '-%']
     );
-    $seq = str_pad(($row['cnt'] ?? 0) + 1, 4, '0', STR_PAD_LEFT);
+    $seq = str_pad((string)((int)($row['last_number'] ?? 0) + 1), 4, '0', STR_PAD_LEFT);
     return "{$prefix}-{$year}-{$seq}";
 }
 
@@ -132,7 +133,7 @@ function renderFlash(): void
     echo "<div class='alert alert-{$type} alert-dismissible fade show animate-slide-down' role='alert'>
             <i class='bi bi-" . ($type === 'success' ? 'check-circle' : ($type === 'danger' ? 'exclamation-circle' : 'info-circle')) . " me-2'></i>
             {$msg}
-            <button type='button' class='btn-close' data-bs-dismiss='alert'></button>
+            <button type='button' class='btn-close' data-bs-dismiss='alert' aria-label='Dismiss message'></button>
           </div>";
 }
 
@@ -160,32 +161,41 @@ function paginate(string $sql, array $params, int $page, int $perPage = ITEMS_PE
     ];
 }
 
-function renderPagination(array $pager, string $baseUrl = ''): string
+function renderPagination(array $pager, string $baseUrl = '', string $fragment = ''): string
 {
     if ($pager['pages'] <= 1) return '';
     $base = $baseUrl ?: (strtok($_SERVER['REQUEST_URI'], '?') . '?' . http_build_query(array_diff_key($_GET, ['page' => ''])) . '&');
-    $html = '<nav><ul class="pagination mb-0">';
-    $html .= '<li class="page-item' . ($pager['page'] <= 1 ? ' disabled' : '') . '">
-                <a class="page-link" href="' . $base . 'page=' . ($pager['page'] - 1) . '"><i class="bi bi-chevron-left"></i></a></li>';
+    $suffix = $fragment !== '' ? '#' . rawurlencode(ltrim($fragment, '#')) : '';
+    $html = '<nav aria-label="Pagination"><ul class="pagination mb-0">';
+    if ($pager['page'] <= 1) {
+        $html .= '<li class="page-item disabled"><span class="page-link" aria-disabled="true"><i class="bi bi-chevron-left" aria-hidden="true"></i><span class="visually-hidden">Previous page</span></span></li>';
+    } else {
+        $html .= '<li class="page-item"><a class="page-link" href="' . e($base . 'page=' . ($pager['page'] - 1) . $suffix) . '" aria-label="Previous page"><i class="bi bi-chevron-left" aria-hidden="true"></i></a></li>';
+    }
 
     $start = max(1, $pager['page'] - 2);
     $end   = min($pager['pages'], $pager['page'] + 2);
 
     if ($start > 1) {
-        $html .= '<li class="page-item"><a class="page-link" href="' . $base . 'page=1">1</a></li>';
+        $html .= '<li class="page-item"><a class="page-link" href="' . e($base . 'page=1' . $suffix) . '" aria-label="Page 1">1</a></li>';
         if ($start > 2) $html .= '<li class="page-item disabled"><span class="page-link">…</span></li>';
     }
     for ($i = $start; $i <= $end; $i++) {
         $active = $i === $pager['page'] ? ' active' : '';
-        $html .= "<li class='page-item{$active}'><a class='page-link' href='{$base}page={$i}'>{$i}</a></li>";
+        $url = e($base . 'page=' . $i . $suffix);
+        $current = $active ? ' aria-current="page"' : '';
+        $html .= "<li class='page-item{$active}'><a class='page-link' href='{$url}' aria-label='Page {$i}'{$current}>{$i}</a></li>";
     }
     if ($end < $pager['pages']) {
         if ($end < $pager['pages'] - 1) $html .= '<li class="page-item disabled"><span class="page-link">…</span></li>';
-        $html .= '<li class="page-item"><a class="page-link" href="' . $base . 'page=' . $pager['pages'] . '">' . $pager['pages'] . '</a></li>';
+        $html .= '<li class="page-item"><a class="page-link" href="' . e($base . 'page=' . $pager['pages'] . $suffix) . '" aria-label="Page ' . $pager['pages'] . '">' . $pager['pages'] . '</a></li>';
     }
 
-    $html .= '<li class="page-item' . ($pager['page'] >= $pager['pages'] ? ' disabled' : '') . '">
-                <a class="page-link" href="' . $base . 'page=' . ($pager['page'] + 1) . '"><i class="bi bi-chevron-right"></i></a></li>';
+    if ($pager['page'] >= $pager['pages']) {
+        $html .= '<li class="page-item disabled"><span class="page-link" aria-disabled="true"><i class="bi bi-chevron-right" aria-hidden="true"></i><span class="visually-hidden">Next page</span></span></li>';
+    } else {
+        $html .= '<li class="page-item"><a class="page-link" href="' . e($base . 'page=' . ($pager['page'] + 1) . $suffix) . '" aria-label="Next page"><i class="bi bi-chevron-right" aria-hidden="true"></i></a></li>';
+    }
     $html .= '</ul></nav>';
     return $html;
 }
@@ -250,11 +260,9 @@ function photoUrl(string $path): string
 
 function itemPrimaryPhoto(string $type, int $id): ?string
 {
-    require_once __DIR__ . '/claim_ml.php';
-    if (!claimMl()->schemaReady()) return null;
     $row = db()->fetchOne(
-        'SELECT p.photo_path FROM item_photos p JOIN item_photo_visibility v ON v.photo_id=p.id AND v.is_public=1
-         WHERE p.item_type = ? AND p.item_id = ? ORDER BY p.is_primary DESC,p.id LIMIT 1',
+        'SELECT photo_path FROM item_photos
+         WHERE item_type = ? AND item_id = ? ORDER BY is_primary DESC,id LIMIT 1',
         [$type, $id]
     );
     return $row ? photoUrl($row['photo_path']) : null;

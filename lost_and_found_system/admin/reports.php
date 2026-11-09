@@ -120,30 +120,26 @@ include __DIR__ . '/../includes/header.php';
 include __DIR__ . '/../includes/sidebar_admin.php';
 ?>
 
-<div class="main-content">
+<main class="main-content" id="main-content" tabindex="-1">
   <div class="topbar">
     <button class="btn-icon me-2" id="sidebarToggle"><i class="bi bi-list"></i></button>
     <div class="topbar-title"><span class="text-muted-sm">Admin /</span> <?= e($pageTitle) ?></div>
-    <div class="topbar-actions">
-      <a href="<?= BASE_URL ?>/reports/export_csv.php?type=<?= $type ?>&search=<?= urlencode($search) ?>&status=<?= urlencode($status) ?>" class="btn-export-csv">
-        <i class="bi bi-download"></i> Export CSV
-      </a>
-      <a href="<?= BASE_URL ?>/reports/pdf_report.php?type=<?= $type ?>" class="btn-pdf-report">
-        <i class="bi bi-file-earmark-pdf"></i> PDF Report
-      </a>
-      
-    </div>
   </div>
 
   <div class="content-area">
     <div class="page-header">
       <div>
         <h1 class="page-title"><?= e($pageTitle) ?></h1>
+        <p class="page-subtitle numeric"><?= number_format($pager['total']) ?> report<?= $pager['total'] === 1 ? '' : 's' ?><?= $search || $status ? ' matching your filters' : '' ?></p>
+      </div>
+      <div class="action-row">
+        <a href="<?= BASE_URL ?>/reports/export_csv.php?type=<?= $type ?>&search=<?= urlencode($search) ?>&status=<?= urlencode($status) ?>" class="btn-export-csv"><i class="bi bi-download" aria-hidden="true"></i> Export CSV</a>
+        <a href="<?= BASE_URL ?>/reports/pdf_report.php?type=<?= $type ?>" class="btn-pdf-report"><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i> PDF report</a>
       </div>
     </div>
 
     <!-- Type Tabs -->
-    <ul class="nav nav-pills mb-3" style="gap:.5rem;">
+    <ul class="nav nav-pills mb-3">
       <?php foreach ([
         ['lost','Lost Items','bi-search'],['found','Found Items','bi-box-seam'],
         ['match','Matches','bi-link-45deg'],['released','Released','bi-check2-circle']
@@ -163,10 +159,10 @@ include __DIR__ . '/../includes/sidebar_admin.php';
         <input type="hidden" name="type" value="<?= e($type) ?>">
         <div class="search-bar flex-grow-1">
           <i class="bi bi-search"></i>
-          <input type="text" name="search" class="form-control" placeholder="Search item name, brand, reporter…"
+          <input type="search" name="search" class="form-control" aria-label="Search item name, brand, or reporter" placeholder="Search item name, brand, reporter…"
                  value="<?= e($search) ?>">
         </div>
-        <select name="status" class="form-select" style="max-width:160px;">
+        <select name="status" class="form-select" aria-label="Filter by status">
           <option value="">All Status</option>
           <?php
           $statuses = $type==='lost'
@@ -184,12 +180,6 @@ include __DIR__ . '/../includes/sidebar_admin.php';
     <?php endif; ?>
 
     <div class="card">
-      <div class="card-header">
-        <span class="card-title">
-          <i class="bi bi-table"></i> <?= e($pageTitle) ?>
-          <span class="badge bg-secondary ms-1"><?= number_format($pager['total']) ?></span>
-        </span>
-      </div>
       <div class="card-body p-0">
         <div class="table-responsive">
 
@@ -202,33 +192,33 @@ include __DIR__ . '/../includes/sidebar_admin.php';
             <tbody>
               <?php foreach ($pager['rows'] as $m): ?>
               <tr>
-                <td style="font-size:.75rem;">#<?= $m['id'] ?></td>
+                <td>#<?= $m['id'] ?></td>
                 <td>
-                  <div class="fw-600" style="font-size:.83rem;"><?= e($m['lost_name']) ?></div>
-                  <code style="font-size:.7rem;"><?= e($m['lost_rn']) ?></code>
+                  <div class="fw-600"><?= e($m['lost_name']) ?></div>
+                  <code><?= e($m['lost_rn']) ?></code>
                 </td>
                 <td>
-                  <div class="fw-600" style="font-size:.83rem;"><?= e($m['found_name']) ?></div>
-                  <code style="font-size:.7rem;"><?= e($m['found_rn']) ?></code>
+                  <div class="fw-600"><?= e($m['found_name']) ?></div>
+                  <code><?= e($m['found_rn']) ?></code>
                 </td>
                 <td>
                   <div class="d-flex align-items-center gap-2">
-                    <div style="background:var(--surface-3);height:6px;border-radius:3px;width:70px;overflow:hidden;flex-shrink:0;">
-                      <div style="background:linear-gradient(90deg,var(--accent),var(--primary));height:100%;border-radius:3px;width:<?= (float)min(100, $m['similarity_score']) ?>%;"></div>
+                    <div class="score-bar" aria-hidden="true">
+                      <div style="width:<?= (float)min(100, $m['similarity_score']) ?>%;"></div>
                     </div>
-                    <strong style="font-size:.82rem;"><?= number_format($m['similarity_score'],1) ?>%</strong>
+                    <strong><?= number_format($m['similarity_score'],1) ?>%</strong>
                   </div>
                 </td>
                 <td><?= statusBadge($m['status']) ?></td>
-                <td style="font-size:.75rem;"><?= timeAgo($m['created_at']) ?></td>
+                <td><?= timeAgo($m['created_at']) ?></td>
                 <td>
                   <?php if ($m['status'] === 'pending'): ?>
                   <div class="d-flex gap-1">
-                    <form method="POST"><input type="hidden" name="action" value="approve_match"><?= csrfField() ?><input type="hidden" name="item_id" value="<?= $m['id'] ?>"><button class="btn btn-sm btn-success py-0 px-2"><i class="bi bi-check-lg"></i></button></form>
-                    <form method="POST"><input type="hidden" name="action" value="reject_match"><?= csrfField() ?><input type="hidden" name="item_id" value="<?= $m['id'] ?>"><button class="btn btn-sm btn-outline-danger py-0 px-2"><i class="bi bi-x"></i></button></form>
+                    <form method="POST"><input type="hidden" name="action" value="approve_match"><?= csrfField() ?><input type="hidden" name="item_id" value="<?= $m['id'] ?>"><button class="btn btn-sm btn-outline-secondary py-0 px-2" aria-label="Confirm match <?= (int)$m['id'] ?>" data-pending-label="Confirming…"><i class="bi bi-check-lg"></i></button></form>
+                    <form method="POST"><input type="hidden" name="action" value="reject_match"><?= csrfField() ?><input type="hidden" name="item_id" value="<?= $m['id'] ?>"><button class="btn btn-sm btn-outline-danger py-0 px-2" aria-label="Reject match <?= (int)$m['id'] ?>" data-pending-label="Rejecting…"><i class="bi bi-x-lg"></i></button></form>
                   </div>
                   <?php else: ?>
-                  <span class="text-muted" style="font-size:.75rem;"><?= ucfirst($m['matched_by']) ?></span>
+                  <span class="text-muted"><?= ucfirst($m['matched_by']) ?></span>
                   <?php endif; ?>
                 </td>
               </tr>
@@ -249,11 +239,11 @@ include __DIR__ . '/../includes/sidebar_admin.php';
               <?php foreach ($pager['rows'] as $r): ?>
               <tr>
                 <td>#<?= $r['id'] ?></td>
-                <td><div class="fw-600" style="font-size:.85rem;"><?= e($r['item_name']) ?></div><code><?= e($r['report_number']) ?></code></td>
+                <td><div class="fw-600"><?= e($r['item_name']) ?></div><code><?= e($r['report_number']) ?></code></td>
                 <td><?= e($r['released_to_name']) ?></td>
                 <td><?= e($r['released_by_name']) ?></td>
                 <td><?= formatDate($r['release_date'], 'M j, Y h:i A') ?></td>
-                <td style="font-size:.8rem;"><?= snippet($r['notes'] ?? '', 60) ?></td>
+                <td><?= snippet($r['notes'] ?? '', 60) ?></td>
               </tr>
               <?php endforeach; ?>
               <?php if (empty($pager['rows'])): ?><tr><td colspan="6"><div class="empty-state py-3"><i class="bi bi-check2-circle"></i><h5>No releases yet</h5></div></td></tr><?php endif; ?>
@@ -273,18 +263,18 @@ include __DIR__ . '/../includes/sidebar_admin.php';
               $detailUrl = BASE_URL . '/admin/' . ($type==='lost'?'reports.php?type=lost':'reports.php?type=found');
               ?>
               <tr>
-                <td><code style="font-size:.75rem;"><?= e($item['report_number']) ?></code></td>
+                <td><code><?= e($item['report_number']) ?></code></td>
                 <td>
-                  <div class="fw-600" style="font-size:.85rem;"><?= e($item['item_name']) ?></div>
-                  <div style="font-size:.72rem;color:var(--text-muted);">
+                  <div class="fw-600"><?= e($item['item_name']) ?></div>
+                  <div class="text-muted-sm">
                     <?= e($item['cat']) ?>
                     <?php if ($item['brand']): ?> · <?= e($item['brand']) ?><?php endif; ?>
                     <?php if ($item['color']): ?> · <?= e($item['color']) ?><?php endif; ?>
                   </div>
                 </td>
-                <td style="font-size:.82rem;"><?= e($item['reporter_name']) ?></td>
-                <td style="font-size:.8rem;"><?= e($item['loc']) ?></td>
-                <td style="font-size:.8rem;white-space:nowrap;">
+                <td><?= e($item['reporter_name']) ?></td>
+                <td><?= e($item['loc']) ?></td>
+                <td class="text-nowrap">
                   <?= formatDate($type==='lost' ? $item['date_lost'] : $item['date_found']) ?>
                 </td>
                 <td><?= statusBadge($item['status']) ?></td>
@@ -294,7 +284,7 @@ include __DIR__ . '/../includes/sidebar_admin.php';
                           data-id="<?= $item['id'] ?>"
                           data-name="<?= e($item['item_name']) ?>"
                           data-status="<?= e($item['status']) ?>"
-                          data-type="<?= $type ?>">
+                          data-type="<?= $type ?>" aria-label="Update status of <?= e($item['item_name']) ?>">
                     <i class="bi bi-pencil"></i>
                   </button>
                   <?php if ($type === 'found'): ?><a href="<?= BASE_URL ?>/security/item_verification.php?item_id=<?= $item['id'] ?>" class="btn btn-sm btn-outline-primary py-0 px-2">Private Reference</a><?php endif; ?>
@@ -319,31 +309,31 @@ include __DIR__ . '/../includes/sidebar_admin.php';
       <?php endif; ?>
     </div>
   </div>
-</div>
+</main>
 
 <!-- Status Update Modal -->
-<div class="modal fade" id="statusModal" tabindex="-1">
+<div class="modal fade" id="statusModal" tabindex="-1" aria-labelledby="status-modal-title">
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title"><i class="bi bi-pencil"></i> Update Item Status</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        <h2 class="modal-title" id="status-modal-title"><i class="bi bi-pencil"></i> Update item status</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <form method="POST" action="?type=<?= $type ?>">
         <?= csrfField() ?>
         <input type="hidden" name="action" id="modalAction" value="">
         <input type="hidden" name="item_id" id="modalItemId" value="">
         <div class="modal-body">
-          <p style="font-size:.9rem;" id="modalItemName"></p>
+          <p id="modalItemName"></p>
           <div class="mb-3">
-            <label class="form-label">New Status</label>
+            <label class="form-label" for="modalStatus">New Status</label>
             <select name="new_status" class="form-select" id="modalStatus">
               <!-- Dynamically populated by JS based on item type -->
             </select>
           </div>
           <div class="mb-3">
-            <label class="form-label">Admin Notes (optional)</label>
-            <textarea name="notes" class="form-control" rows="3" placeholder="Add a note…"></textarea>
+            <label class="form-label" for="status-notes">Admin Notes (optional)</label>
+            <textarea name="notes" id="status-notes" class="form-control" rows="3" placeholder="Add a note…"></textarea>
           </div>
         </div>
         <div class="modal-footer">

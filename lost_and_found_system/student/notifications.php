@@ -15,16 +15,16 @@ requireRole('student', 'admin', 'security');
 
 $uid = $user['id'];
 
-// Mark all as read
-if (isset($_GET['mark_all'])) {
-    markAllNotificationsRead($uid);
-    redirect(BASE_URL . '/student/notifications.php');
-}
-
-// Mark single as read
-if (isset($_GET['read'])) {
-    markNotificationRead((int)$_GET['read'], $uid);
-    redirect(BASE_URL . '/student/notifications.php');
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    verifyCsrf();
+    if (($_POST['action'] ?? '') === 'mark_all') {
+        markAllNotificationsRead($uid);
+        setFlash('success', 'All notifications marked as read.');
+    } elseif (($_POST['action'] ?? '') === 'read') {
+        markNotificationRead((int)($_POST['notification_id'] ?? 0), $uid);
+    }
+    $returnPage = max(1, (int)($_POST['page'] ?? 1));
+    redirect(BASE_URL . '/student/notifications.php?page=' . $returnPage);
 }
 
 $page    = max(1, (int)($_GET['page'] ?? 1));
@@ -41,16 +41,11 @@ $sidebar = match($user['role']) {
 include __DIR__ . '/' . $sidebar;
 ?>
 
-<div class="main-content">
+<main class="main-content" id="main-content" tabindex="-1">
   <div class="topbar">
     <button class="btn-icon me-2" id="sidebarToggle"><i class="bi bi-list"></i></button>
     <div class="topbar-title"><span class="text-muted-sm">Account /</span> Notifications</div>
     <div class="topbar-actions">
-      <?php if ($unread > 0): ?>
-      <a href="?mark_all=1" class="btn btn-outline-primary btn-sm">
-        <i class="bi bi-check-all me-1"></i> Mark all read
-      </a>
-      <?php endif; ?>
       
     </div>
   </div>
@@ -60,11 +55,12 @@ include __DIR__ . '/' . $sidebar;
       <div>
         <h1 class="page-title">Notifications
           <?php if ($unread > 0): ?>
-          <span class="badge bg-danger ms-2" style="font-size:.75rem;"><?= $unread ?> new</span>
+          <span class="badge ms-2"><?= $unread ?> unread</span>
           <?php endif; ?>
         </h1>
-        <p class="page-subtitle">Stay updated on matches, claims, and system alerts.</p>
+        <p class="page-subtitle">Updates on matches, ownership reviews, and item returns.</p>
       </div>
+       <?php if ($unread > 0): ?><form method="POST" data-pending-label="Marking as read…"><?= csrfField() ?><input type="hidden" name="action" value="mark_all"><input type="hidden" name="page" value="<?= $page ?>"><button type="submit" class="btn btn-primary"><i class="bi bi-check-all" aria-hidden="true"></i> Mark all read</button></form><?php endif; ?>
     </div>
 
     <div class="card">
@@ -79,17 +75,20 @@ include __DIR__ . '/' . $sidebar;
       <?php else: ?>
         <?php foreach ($pager['rows'] as $n): ?>
         <?php $icons = ['match'=>'bi-link-45deg','success'=>'bi-check-circle','warning'=>'bi-exclamation-triangle','info'=>'bi-info-circle','claim'=>'bi-file-earmark-check']; ?>
-        <a href="?read=<?= $n['id'] ?>" class="text-decoration-none d-block notif-item <?= $n['is_read']?'':'unread' ?>">
+        <article class="notif-item <?= $n['is_read']?'':'unread' ?>">
           <div class="notif-icon <?= e($n['type']) ?>">
             <i class="bi <?= $icons[$n['type']] ?? 'bi-bell' ?>"></i>
           </div>
-          <div class="notif-body" style="flex:1;">
-            <div class="notif-title" style="font-size:.88rem;"><?= e($n['title']) ?></div>
+          <div class="notif-body">
+            <a class="notif-title" href="<?= e(notificationUrl($n, $user['role'])) ?>"><?= e($n['title']) ?> <i class="bi bi-arrow-up-right" aria-hidden="true"></i></a>
             <div class="notif-msg"><?= e($n['message']) ?></div>
             <span class="notif-time"><?= timeAgo($n['created_at']) ?> · <?= formatDate($n['created_at'],'M j, Y h:i A') ?></span>
+            <?php if (!$n['is_read']): ?>
+            <form method="POST" class="mt-2" data-pending-label="Marking as read…"><?= csrfField() ?><input type="hidden" name="action" value="read"><input type="hidden" name="notification_id" value="<?= (int)$n['id'] ?>"><input type="hidden" name="page" value="<?= $page ?>"><button type="submit" class="btn btn-outline-secondary btn-sm" aria-label="Mark <?= e($n['title']) ?> as read">Mark as read</button></form>
+            <?php endif; ?>
           </div>
-          <?php if (!$n['is_read']): ?><div class="unread-dot"></div><?php endif; ?>
-        </a>
+          <?php if (!$n['is_read']): ?><span class="unread-dot" role="img" aria-label="Unread"></span><?php endif; ?>
+        </article>
         <?php endforeach; ?>
       <?php endif; ?>
       <?php if ($pager['pages'] > 1): ?>
@@ -100,6 +99,6 @@ include __DIR__ . '/' . $sidebar;
       <?php endif; ?>
     </div>
   </div>
-</div>
+</main>
 
 <?php include __DIR__ . '/../includes/footer.php'; ?>

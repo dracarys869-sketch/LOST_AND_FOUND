@@ -29,13 +29,13 @@ $photos = claimMl()->schemaReady() ? db()->fetchAll('SELECT p.id,p.photo_path,CO
 include __DIR__ . '/../includes/header.php';
 include __DIR__ . '/../includes/sidebar_admin.php';
 ?>
-<div class="main-content">
+<main class="main-content" id="main-content" tabindex="-1">
   <div class="topbar"><button class="btn-icon me-2" id="sidebarToggle" aria-label="Toggle sidebar"><i class="bi bi-list"></i></button><div class="topbar-title">Admin / Photo Privacy</div></div>
   <div class="content-area">
-    <div class="page-header"><div><h1 class="page-title">Photo Privacy — <?= e($item['item_name']) ?></h1><p class="page-subtitle">Original photos are private by default. Make a photo public only after checking it reveals no identifying secrets or correct verification answers.</p></div></div>
+    <div class="page-header"><div><h1 class="page-title">Report Photos — <?= e($item['item_name']) ?></h1><p class="page-subtitle">Report photos are shown on the public landing page after upload. Check them here to confirm they do not contain sensitive information.</p></div></div>
     <div class="row g-3">
-      <?php foreach ($photos as $photo): ?><div class="col-md-6 col-lg-4"><div class="card"><div class="card-body">
-        <img src="<?= e(photoUrl($photo['photo_path'])) ?>" class="img-fluid mb-3" alt="Item photo under privacy review">
+      <?php foreach ($photos as $photo): ?><div class="col-md-6"><div class="card"><div class="card-body">
+        <a href="<?= e(photoUrl($photo['photo_path'])) ?>" target="_blank" rel="noopener" aria-label="Open full-size photo of <?= e($item['item_name']) ?>"><img src="<?= e(photoUrl($photo['photo_path'])) ?>" class="photo-review-image mb-3" alt="<?= e($item['item_name']) ?> — photo under privacy review"></a>
         <form method="POST">
           <?= csrfField() ?><input type="hidden" name="photo_id" value="<?= $photo['id'] ?>">
           <div class="form-check mb-3"><input type="checkbox" class="form-check-input" id="public-<?= $photo['id'] ?>" name="is_public" value="1" <?= $photo['is_public'] ? 'checked' : '' ?>><label class="form-check-label" for="public-<?= $photo['id'] ?>">Reviewed: safe to show publicly (no private marks, serials, labels, contents, or personal details)</label></div>
@@ -46,5 +46,5 @@ include __DIR__ . '/../includes/sidebar_admin.php';
     <?php if (!$photos): ?><div class="alert alert-info">No photos available. If this is a new installation, apply the Decision Tree migration first.</div><?php endif; ?>
     <a href="<?= BASE_URL ?>/admin/reports.php?type=<?= $type ?>" class="btn btn-outline-secondary mt-3">Back to Reports</a>
   </div>
-</div>
+</main>
 <?php include __DIR__ . '/../includes/footer.php'; ?>

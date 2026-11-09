@@ -1,9 +1,8 @@
 <?php
-/** Serve ownership-related images only after checking visibility and authorization. */
+/** Serve report photos publicly and ownership proof photos only to authorized users. */
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth.php';
-require_once __DIR__ . '/../includes/claim_ml.php';
 header('Cache-Control: private, no-store');
 header('X-Content-Type-Options: nosniff');
 if (isLoggedIn()) checkSessionTimeout();
@@ -21,8 +20,7 @@ if (str_starts_with($path, 'claim_proofs/')) {
     if ($photo) {
         $table = $photo['item_type'] === 'found' ? 'found_items' : 'lost_items';
         $item = db()->fetchOne("SELECT user_id FROM {$table} WHERE id=?", [$photo['item_id']]);
-        $visibility = claimMl()->schemaReady() ? db()->fetchOne('SELECT is_public FROM item_photo_visibility WHERE photo_id=?', [$photo['id']]) : false;
-        $allowed = $item && ($staff || (int)($user['id'] ?? 0) === (int)$item['user_id'] || !empty($visibility['is_public']));
+        $allowed = (bool)$item;
     }
 }
 if (!$allowed) { http_response_code(403); exit; }
